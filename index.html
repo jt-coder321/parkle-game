@@ -486,6 +486,11 @@ const FEATURES=[
  {k:'tunnel',at:51,title:'Tunnels',text:'A car that drives into a tunnel pops out of the tunnel with the same number and keeps going the same way.'},
  {k:'lift',at:54,title:'Two-level parking',text:'Some spaces are car lifts with a car parked on each level. The top car has to leave before the one underneath can move.'},
  {k:'train',at:57,title:'Train crossing',text:'Tracks cross the lot. Lights flash when a train is coming, and on the next move the train blocks the tracks. It passes after one move.'},
+ {k:'turntable',at:62,title:'Turntables',text:'A turntable turns cars to face its arrow, and the arrow rotates a quarter turn every time a car leaves. Watch where it points.'},
+ {k:'meter',at:67,title:'Parking meters',text:'A car with a meter has to leave before its time runs out. The number shows how many other cars can leave first. When it says GO NOW, it must be the next car to leave.'},
+ {k:'sleepy',at:72,title:'Sleepy drivers',text:'Some drivers are napping. A sleepy car wakes up as soon as a car parked right next to it drives away.'},
+ {k:'mystery',at:77,title:'Mystery riders',text:'Riders far back in the line wear grey hoodies, so you can only see the colors of the first few. Plan with what you can see.'},
+ {k:'bendy',at:82,title:'Bendy buses',text:'Bendy buses are four spaces long and seat 16 riders. They need a long clear road to get out.'},
  {k:'rainbow',at:33,title:'Rainbow riders',text:'Rainbow riders get into the first parked car at the stops, whatever its color.'},
 ];
 FEATURES.sort((a,b)=>a.at-b.at);
@@ -538,14 +543,15 @@ function tracePath(L,occ,c,dep,S){
   x=nx;y=ny;path.push([x,y]);
   if(L.portal&&L.portal[i]>=0){const j=L.portal[i];x=j%w;y=(j/w)|0;path.push([x,y,1])}
   if(L.arrow[i]>=0&&!noA)d=L.arrow[i];
+  if(L.turn&&L.turn[i]>=0&&!noA)d=(L.turn[i]+dep)%4;
   const key=i*4+d;if(seen.has(key))return{ok:false,path,d,block:{k:'loop'}};seen.add(key);
  }
  return{ok:false,path,d,block:{k:'loop'}};
 }
 
 // vehicle styles and how many riders each one seats
-const VCAP={ferry:14,taxi:2,bubble:2,mini:3,sport:2,beetle:3,sedan:4,hatch:4,jeep:5,pickup:5,van:6,camper:6,limo:8,tram:9,bus:10,coach:12};
-const VBYLEN={1:[['taxi',3],['bubble',1],['mini',2]],2:[['sedan',4],['hatch',3],['sport',1.5],['beetle',1.5],['jeep',1.5],['pickup',1.5],['van',2]],3:[['bus',4],['coach',2],['tram',1.5],['camper',1.5],['limo',1]]};
+const VCAP={bendy:16,ferry:14,taxi:2,bubble:2,mini:3,sport:2,beetle:3,sedan:4,hatch:4,jeep:5,pickup:5,van:6,camper:6,limo:8,tram:9,bus:10,coach:12};
+const VBYLEN={1:[['taxi',3],['bubble',1],['mini',2]],2:[['sedan',4],['hatch',3],['sport',1.5],['beetle',1.5],['jeep',1.5],['pickup',1.5],['van',2]],3:[['bus',4],['coach',2],['tram',1.5],['camper',1.5],['limo',1]],4:[['bendy',1]]};
 function pickVariant(len,r){const a=VBYLEN[len];let t=0;for(const x of a)t+=x[1];let u=r()*t;for(const x of a){u-=x[1];if(u<=0)return x[0]}return a[0][0]}
 function tryBuild(p,r){
  const {w,h}=p,W=w*h;
@@ -559,20 +565,22 @@ function tryBuild(p,r){
  const portal=new Int16Array(W).fill(-1);
  if(p.feats.has('tunnel')){for(let t=0;t<40;t++){const a=rc(),b=rc();const ax=a%w,ay=(a/w)|0,bx=b%w,by=(b/w)|0;if(a===b||wall[a]||wall[b]||arrow[a]>=0||arrow[b]>=0||gate[a]>=0||gate[b]>=0||Math.abs(ax-bx)+Math.abs(ay-by)<3)continue;portal[a]=b;portal[b]=a;break}}
  let rail=-1;if(p.feats.has('train')&&h>=6){rail=ri(r,2,h-3)}
+ const turn=new Int8Array(W).fill(-1);
+ if(p.feats.has('turntable')){let k=ri(r,1,2);while(k--){const i=rc();if(!wall[i]&&arrow[i]<0&&gate[i]<0&&portal[i]<0&&((i/w)|0)!==rail)turn[i]=ri(r,0,3)}}
  const wash=new Int8Array(W).fill(-1);
- if(p.feats.has('wash')){let k=ri(r,1,2);while(k--){const i=rc();if(!wall[i]&&arrow[i]<0&&gate[i]<0)wash[i]=ri(r,0,7)}}
- const blocked=i=>wall[i]||arrow[i]>=0||gate[i]>=0||water[i]||wash[i]>=0||portal[i]>=0||((i/w)|0)===rail;
- const lw={1:p.feats.has('taxi')?0.9:0,2:3,3:p.feats.has('bus')?1.6:0};
+ if(p.feats.has('wash')){let k=ri(r,1,2);while(k--){const i=rc();if(!wall[i]&&arrow[i]<0&&gate[i]<0&&turn[i]<0&&portal[i]<0)wash[i]=ri(r,0,7)}}
+ const blocked=i=>turn[i]>=0||wall[i]||arrow[i]>=0||gate[i]>=0||water[i]||wash[i]>=0||portal[i]>=0||((i/w)|0)===rail;
+ const lw={1:p.feats.has('taxi')?0.9:0,2:3,3:p.feats.has('bus')?1.6:0,4:p.feats.has('bendy')?1.1:0};const LENS=p.feats.has('bendy')?[1,2,3,4]:[1,2,3];
  let free=0;for(let i=0;i<W;i++)if(!blocked(i))free++;
  const N=Math.max(3,Math.round(free*p.density/2.1));
 let nLift=0;
- const L={w,h,wall,arrow,gate,water:ferry?water:null,wash:p.feats.has('wash')?wash:null,portal:portal.some(v=>v>=0)?portal:null,rail,cars:[]};let nFerry=0;
+ const L={w,h,wall,arrow,gate,water:ferry?water:null,wash:p.feats.has('wash')?wash:null,portal:portal.some(v=>v>=0)?portal:null,turn:turn.some(v=>v>=0)?turn:null,rail,cars:[]};let nFerry=0;
  const occ=new Int16Array(W).fill(-1);
  const paths=[];
  for(let j=0;j<N;j++){
   const rIdx=N-1-j;
   const cands=[];let tw=0;
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++)for(let d=0;d<4;d++)for(const len of [1,2,3]){
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++)for(let d=0;d<4;d++)for(const len of LENS){
    const fer=x===canal;
    if(fer?(len!==3||d%2===1||nFerry>=2):!lw[len])continue;
    let okc=true;const cells=[];
@@ -623,8 +631,12 @@ let nLift=0;
   }
  }
  L.cells=L.cars.map(cellsOf);
+ for(const c of L.cars){c.meter=-1;c.sleep=0}
+ L.nb=L.cars.map(c=>{const mine=new Set(L.cells[c.id].map(([x,y])=>y*w+x)),out=new Set();for(const o of L.cars){if(o.id===c.id||o.id===c.liftTop||o.id===c.liftUnder)continue;for(const[x,y]of L.cells[o.id]){let adj=false;for(let k=0;k<4;k++){if(mine.has((y+DY[k])*w+(x+DX[k]))&&x+DX[k]>=0&&x+DX[k]<w){adj=true;break}}if(adj){out.add(o.id);break}}}return[...out]});
+ if(p.feats.has('meter')){const cand=shuffle(r,L.cars.filter(c=>rIndex[c.id]>=2&&c.frozen===0));const m=Math.min(cand.length,ri(r,1,2));for(let k=0;k<m;k++){const c=cand[k];c.meter=rIndex[c.id]+ri(r,1,3)}}
+ if(p.feats.has('sleepy')){const cand=shuffle(r,L.cars.filter(c=>rIndex[c.id]>=1&&c.frozen===0&&c.lock<0&&c.meter<0&&L.nb[c.id].some(o=>rIndex[o]<rIndex[c.id])));const m=Math.min(cand.length,ri(r,1,3));for(let k=0;k<m;k++)cand[k].sleep=1}
  L.queue=genQueue(L,order,p,r);
- L.bays=p.bays;L.towBay=p.feats.has('towzone')?p.bays-1:-1;L.chal=p.chal||null;L.fog=p.feats.has('fog');L.boss=p.boss;L.feats=[...p.feats];L.order=order;
+ L.bays=p.bays;L.towBay=p.feats.has('towzone')?p.bays-1:-1;L.chal=p.chal||null;L.fog=p.feats.has('fog');L.mystery=p.feats.has('mystery');L.boss=p.boss;L.feats=[...p.feats];L.order=order;
  return L;
 }
 
@@ -654,10 +666,13 @@ function colorOf(L,S,id){const p=S.paint&&S.paint[id];return p!=null?p:L.cars[id
 function effCar(L,S,c){if(!S.flip||!S.flip[c.id])return c;const cs=L.cells[c.id],t=cs[cs.length-1];return{id:c.id,x:t[0],y:t[1],d:(c.d+2)%4,len:c.len,ferry:c.ferry}}
 function cloneS(S){return{gone:S.gone.slice(),bays:S.bays.map(b=>b&&{car:b.car,n:b.n}),qi:S.qi,dep:S.dep,rev:S.rev.slice(),q:S.q.slice(),qid:S.qid.slice(),flip:Object.assign({},S.flip),paint:Object.assign({},S.paint),fl:Object.assign({},S.fl),noCones:S.noCones,noArrows:S.noArrows,gatesOpen:S.gatesOpen,thaw:S.thaw,unlock:S.unlock,tzc:S.tzc}}
 function occOf(L,S){const o=new Int16Array(L.w*L.h).fill(-1);for(const c of L.cars)if(!S.gone[c.id])for(const[x,y]of L.cells[c.id])o[y*L.w+x]=c.id;return o}
+function asleepOk(L,S,c){const nb=L.nb&&L.nb[c.id];if(!nb)return true;for(const o of nb)if(S.gone[o])return true;return false}
+function meterOut(L,S){for(const c of L.cars)if(c.meter>=0&&!S.gone[c.id]&&S.dep>c.meter)return c;return null}
 function why(L,S,occ,c){
  if(S.gone[c.id])return{k:'gone'};
  if(c.liftTop>=0&&!S.gone[c.liftTop])return{k:'lifted'};
  if(c.frozen>S.dep&&!S.thaw)return{k:'frozen'};
+ if(c.sleep&&!S.thaw&&!asleepOk(L,S,c))return{k:'sleep'};
  if(c.lock>=0&&!S.gone[c.lock]&&!S.unlock)return{k:'locked'};
  const tr=tracePath(L,occ,effCar(L,S,c),S.dep,S);
  return{k:tr.ok?'ok':'blocked',tr};
@@ -723,6 +738,7 @@ function doomed(L,S){
 }
 function status(L,S){
  if(isWin(L,S))return'win';
+ if(meterOut(L,S))return'lose';
  if(doomed(L,S))return'lose';
  if(!S.bays.includes(null))return'lose';
  const occ=occOf(L,S);
@@ -743,7 +759,7 @@ function solve(L,S0,opt){
   if(isWin(L,S))return[];
   if(timedOut)return null;
   if(++nodes>budget){timedOut=true;return null}
-  if(!S.bays.includes(null))return null;
+  if(!S.bays.includes(null)||meterOut(L,S))return null;
   const k=key(S);if(seen.has(k))return null;seen.add(k);
   const occ=occOf(L,S);const moves=[];
   for(const c of L.cars){if(S.gone[c.id])continue;const w=why(L,S,occ,c);if(w.k==='ok')moves.push(c.id)}
@@ -762,7 +778,7 @@ function countSolutions(L,cap,budget){
  function rec(S){
   if(isWin(L,S))return 1;
   if(++nodes>budget)return -1;
-  if(!S.bays.includes(null))return 0;
+  if(!S.bays.includes(null)||meterOut(L,S))return 0;
   const k=key(S);if(memo.has(k))return memo.get(k);
   const occ=occOf(L,S);let tot=0;
   for(const c of L.cars){if(S.gone[c.id]||why(L,S,occ,c).k!=='ok')continue;const S2=cloneS(S);applyTap(L,S2,c.id,null,null);const v=rec(S2);if(v<0)return -1;tot+=v;if(tot>=cap)break}
@@ -835,7 +851,7 @@ function buildFrom(p,r,n,daily){
  const p2=paramsFor(3,r,null);p2.feats=new Set();
  for(;;){const L=tryBuild(p2,r);if(!L)continue;const ri_=[];L.order.forEach((id,k)=>ri_[id]=k);const v=solve(L,initState(L),{budget:15000,prio:(S,id)=>ri_[id]});if(v.sol){L.sol=v.sol;L.n=n;L.daily=daily||null;L.p={intro:null};return L}}
 }
-if(typeof module!=='undefined')module.exports={packTry,tryBuild,mulberry32,countSolutions,PACKS,PACK_LEN,genPack,trainOn,DISTRICTS,districtOf,CHALLENGES,challengeOf,DISTRICT_BOSS,tally,rebalance,board,doomed,greedyRate,VCAP,genCustom,colorOf,effCar,genLevel,initState,cloneS,occOf,why,applyTap,status,isWin,solve,needPrio,FEATURES,reveal,tracePath};
+if(typeof module!=='undefined')module.exports={meterOut,asleepOk,packTry,tryBuild,mulberry32,countSolutions,PACKS,PACK_LEN,genPack,trainOn,DISTRICTS,districtOf,CHALLENGES,challengeOf,DISTRICT_BOSS,tally,rebalance,board,doomed,greedyRate,VCAP,genCustom,colorOf,effCar,genLevel,initState,cloneS,occOf,why,applyTap,status,isWin,solve,needPrio,FEATURES,reveal,tracePath};
 
 </script>
 <script>
@@ -1133,6 +1149,7 @@ function tapCar(id){
  const c=L.cars[id],occ=occOf(L,S),w=why(L,S,occ,c),t=now();
  if(!c||w.k==='gone'||ended)return;
  if(w.k==='frozen'){toast('Frozen solid. '+(c.frozen-S.dep)+' more car'+(c.frozen-S.dep>1?'s':'')+' must leave first.');wiggle(id);sfx('bump');buzz(12);return}
+ if(w.k==='sleep'){toast('Shh, this driver is asleep. Move a car parked right next to it to wake it up.');wiggle(id);for(const o of L.nb[id])if(!S.gone[o])flash[o]=t+0.9;sfx('bump');buzz(12);return}
  if(w.k==='lifted'){toast('This car is under a lift. Move the car on top first.');wiggle(id);flash[c.liftTop]=t+0.9;sfx('bump');buzz(12);return}
  if(w.k==='locked'){toast('Locked. The car with the matching key has to leave first.');wiggle(id);flash[c.lock]=t+0.9;sfx('bump');buzz(12);return}
  if(w.k==='blocked'){
@@ -1282,9 +1299,9 @@ function showWin(){
 }
 function showLose(){
  const occ=occOf(L,S);const any=L.cars.some(c=>!S.gone[c.id]&&why(L,S,occ,c).k==='ok');
- const dm=doomed(L,S);$('lTitle').textContent=timeUp?'Time\u2019s up':dm?'No seats left':'Stops jammed';
+ const mo=meterOut(L,S),dm=mo?null:doomed(L,S);$('lTitle').textContent=timeUp?'Time\u2019s up':mo?'Meter ran out':dm?'No seats left':'Stops jammed';
  $('lUndo').textContent=timeUp?'Add 30 seconds (costs stars)':'Undo last move';$('lUndo').hidden=!timeUp&&L.chal==='noundo';$('lHint').hidden=timeUp||L.chal==='noundo';
- $('lText').textContent=timeUp?'The clock ran out with '+(S.q.length-S.qi)+' riders still waiting.':dm?(dm.extra+' '+COL[dm.col].n+' rider'+(dm.extra>1?'s have':' has')+' no seat left in any '+COL[dm.col].n+' car.'+(L.feats.includes('rainbow')?' A rainbow rider took one of those seats.':'')+' Undo and try another order.'):!S.bays.includes(null)?'All stops are full and nobody at the front of the line fits. Undo and free a different car.':'No car can move right now and the line is stuck. Undo and try another order.';
+ $('lText').textContent=timeUp?'The clock ran out with '+(S.q.length-S.qi)+' riders still waiting.':mo?'A car with a parking meter was still parked when its time ran out. Undo and get it out sooner.':dm?(dm.extra+' '+COL[dm.col].n+' rider'+(dm.extra>1?'s have':' has')+' no seat left in any '+COL[dm.col].n+' car.'+(L.feats.includes('rainbow')?' A rainbow rider took one of those seats.':'')+' Undo and try another order.'):!S.bays.includes(null)?'All stops are full and nobody at the front of the line fits. Undo and free a different car.':'No car can move right now and the line is stuck. Undo and try another order.';
  if(mode.type==='endless'){const b=save.best[mode.key];$('lText').textContent+=' Run so far: '+mode.cars+' cars, wave '+mode.wave+'.'+(b?' Best: '+b.cars+' cars.':'')}
  $('lRetry').textContent=mode.type==='endless'?'End run':'Retry';$('lBoost').hidden=!invTotal();
  showOv('ovLose');sfx('lose');buzz(60);shake(5,0.3);flashT=now();flashCol='232,72,75';
@@ -1528,8 +1545,9 @@ function drawHead(x,y,r,v,blink){
   case 6:cx.strokeStyle='#30343f';cx.lineWidth=Math.max(1.5,r*0.2);cx.beginPath();cx.arc(x,y-r*0.05,r*1.12,Math.PI*1.05,Math.PI*1.95);cx.stroke();cx.fillStyle=hk;rr(x-r*1.3,y-r*0.2,r*0.42,r*0.6,r*0.15);cx.fill();rr(x+r*0.88,y-r*0.2,r*0.42,r*0.6,r*0.15);cx.fill();break;
  }
 }
+const MYST={l:'#d5d9e2',c:'#aeb5c2',d:'#8b93a3',dd:'#5d6577',n:'grey'};
 function drawPerson(x,y,s,colIdx,t,bob,seed){
- const v=pvar(seed==null?Math.abs(Math.round(x)):seed),c=colIdx<0?null:COL[colIdx];
+ const v=pvar(seed==null?Math.abs(Math.round(x)):seed),c=colIdx===-2?MYST:colIdx<0?null:COL[colIdx];
  const ph=(seed||0)*1.37;const yy=y+(bob?Math.sin(t*4+ph)*s*0.035:0);const bw=v.bw,bh=v.bh;
  cx.save();cx.lineJoin='round';
  cx.fillStyle='rgba(0,0,0,.16)';cx.beginPath();cx.ellipse(x,y+s*0.47,s*0.3*bw,s*0.075,0,0,7);cx.fill();
@@ -1547,7 +1565,7 @@ function drawPerson(x,y,s,colIdx,t,bob,seed){
  cx.fillStyle=v.skin;cx.beginPath();cx.arc(x-tw/2-s*0.02,ty+s*0.26,s*0.045,0,7);cx.arc(x+tw/2+s*0.02,ty+s*0.26,s*0.045,0,7);cx.fill()}
  cx.fillStyle=fill;cx.strokeStyle=INK;cx.lineWidth=Math.max(1.2,s*0.055);rr(x-tw/2,ty,tw,tht,[s*0.17,s*0.17,s*0.06,s*0.06]);cx.fill();cx.stroke();
  if(v.pack){cx.strokeStyle=mixHex(v.hatC,'#000000',0.35);cx.lineWidth=Math.max(1,s*0.04);cx.beginPath();cx.moveTo(x-tw*0.28,ty+s*0.02);cx.lineTo(x-tw*0.28,ty+tht*0.8);cx.moveTo(x+tw*0.28,ty+s*0.02);cx.lineTo(x+tw*0.28,ty+tht*0.8);cx.stroke()}
- if(c&&save.settings.shapes&&s>15){const k_=save.settings.cb?1.7:1;cx.fillStyle='rgba(255,255,255,.95)';cx.beginPath();cx.arc(x,ty+tht*0.55,s*0.085*k_,0,7);cx.fill();drawShape(SHAPES[colIdx],x,ty+tht*0.55,s*0.06*k_,c.dd||c.d)}
+ if(c&&save.settings.shapes&&s>15){const k_=save.settings.cb?1.7:1;cx.fillStyle='rgba(255,255,255,.95)';cx.beginPath();cx.arc(x,ty+tht*0.55,s*0.085*k_,0,7);cx.fill();drawShape(colIdx===-2?'q':SHAPES[colIdx],x,ty+tht*0.55,s*0.06*k_,c.dd||c.d)}
  if(v.scarf){cx.fillStyle=v.scarfC;rr(x-tw*0.42,ty-s*0.02,tw*0.84,s*0.08,s*0.04);cx.fill();rr(x+tw*0.1,ty,s*0.07,s*0.16,s*0.03);cx.fill()}
  const blink=bob&&((t*0.7+ph)%3.2)<0.09;
  drawHead(x,ty-s*0.16,s*0.2,v,blink);
@@ -1601,6 +1619,7 @@ function drawVehicle(c,px,py,ang,Lp,W,col,opt){
   case'van':ws(hl-L_*0.26,L_*0.12);roof(-hl+L_*0.06,hl-L_*0.27);cx.strokeStyle='rgba(0,0,0,.18)';cx.lineWidth=Math.max(1,W*0.05);for(const yy of[-0.38,0.38]){cx.beginPath();cx.moveTo(-hl+L_*0.1,yy*W);cx.lineTo(hl-L_*0.32,yy*W);cx.stroke()}break;
   case'beetle':ws(hl-L_*0.42,L_*0.15);cx.fillStyle=col.l;cx.beginPath();cx.ellipse(-L_*0.06,0,L_*0.2,hw*0.72,0,0,7);cx.fill();ws(-hl+L_*0.16,L_*0.1,W*0.08);break;
   case'jeep':ws(hl-L_*0.36,L_*0.1);cx.fillStyle=col.dd;rr(-hl+L_*0.08,-hw*0.75,L_*0.52,hw*1.5,W*0.06);cx.fill();cx.strokeStyle=col.l;cx.lineWidth=Math.max(1.5,W*0.08);cx.strokeRect(-hl+L_*0.12,-hw*0.6,L_*0.44,hw*1.2);break;
+  case'bendy':{ws(hl-L_*0.07,L_*0.05);roof(-hl+L_*0.03,-L_*0.04);roof(L_*0.04,hl-L_*0.09);for(const s of[-1,1])for(let i=0;i<8;i++)glass(-hl+L_*0.04+i*L_*0.115+(i>=4?L_*0.04:0),s>0?hw*0.42:-hw*0.82,L_*0.08,hw*0.4,W*0.05);cx.fillStyle='#30343f';rr(-L_*0.04,-hw*0.95,L_*0.08,W*0.95*2,W*0.04);cx.fill();cx.strokeStyle='#9aa3b2';cx.lineWidth=Math.max(1,W*0.03);for(let k=1;k<4;k++){const xx=-L_*0.04+k*L_*0.02;cx.beginPath();cx.moveTo(xx,-hw*0.9);cx.lineTo(xx,hw*0.9);cx.stroke()}break}
   case'bus':ws(hl-L_*0.09,L_*0.06);roof(-hl+L_*0.04,hl-L_*0.11);for(const s of[-1,1])for(let i=0;i<6;i++)glass(-hl+L_*0.06+i*L_*0.13,s>0?hw*0.42:-hw*0.82,L_*0.1,hw*0.4,W*0.05);cx.fillStyle='rgba(255,255,255,.55)';rr(-L_*0.22,-hw*0.25,L_*0.16,hw*0.5,W*0.06);cx.fill();rr(L_*0.06,-hw*0.25,L_*0.12,hw*0.5,W*0.06);cx.fill();break;
   case'coach':ws(hl-L_*0.1,L_*0.07);glass(-hl+L_*0.05,-hw*0.84,L_*0.8,hw*0.36,W*0.08);glass(-hl+L_*0.05,hw*0.48,L_*0.8,hw*0.36,W*0.08);cx.fillStyle='#ffffff';cx.fillRect(-hl+L_*0.05,-W*0.06,L_*0.8,W*0.12);break;
   case'tram':ws(hl-L_*0.08,L_*0.05);ws(-hl+L_*0.03,L_*0.05);roof(-hl+L_*0.1,hl-L_*0.1,'#e9e6dc');cx.strokeStyle='#30343f';cx.lineWidth=Math.max(1,W*0.05);cx.beginPath();cx.moveTo(-L_*0.12,0);cx.lineTo(-L_*0.04,-hw*0.4);cx.lineTo(L_*0.04,0);cx.lineTo(L_*0.12,-hw*0.4);cx.stroke();cx.fillStyle=col.c;cx.fillRect(-hl+L_*0.1,-W*0.05,L_*0.8,W*0.1);break;
@@ -1703,7 +1722,8 @@ function frameInner(){
   if(L.gate[i]>=0)drawGate(x,y,cell,!S.gatesOpen&&(S.dep&1)===L.gate[i],t);
   if(L.wall[i]&&!S.noCones)drawCone(x,y,cell);
   if(L.wash&&L.wash[i]>=0)drawWash(x,y,cell,L.wash[i],t);
-  if(L.portal&&L.portal[i]>=0)drawPortal(x,y,cell,t);}
+  if(L.portal&&L.portal[i]>=0)drawPortal(x,y,cell,t);
+  if(L.turn&&L.turn[i]>=0)drawTurntable(x,y,cell,(L.turn[i]+(S.noArrows?0:S.dep))%4,t,S.noArrows);}
  if(L.rail>=0)drawRail(t);
  // bays
  const shk=shakeBays>t?Math.sin(t*60)*4:0;
@@ -1736,7 +1756,7 @@ function frameInner(){
   const up=c.liftUnder>=0&&!S.gone[c.liftUnder];if(up)yo-=cell*0.13;
   let pts=carPts(poly,s,c.len);if(ox||yo)pts=pts.map(p=>[p[0]+ox,p[1]+yo]);
   if(up)drawLiftUnder(pts);
-  const md=a&&(a.type==='bump'||a.type==='wiggle')?'worry':(c.frozen>S.dep&&!S.thaw)?'sleep':(hintOn&&hintCar===c.id)||(preview&&preview.id===c.id&&preview.ok)?'happy':(preview&&preview.id===c.id)?'worry':null;
+  const md=a&&(a.type==='bump'||a.type==='wiggle')?'worry':(c.frozen>S.dep&&!S.thaw)||(c.sleep&&!S.thaw&&!asleepOk(L,S,c))?'sleep':(hintOn&&hintCar===c.id)||(preview&&preview.id===c.id&&preview.ok)?'happy':(preview&&preview.id===c.id)?'worry':null;
   drawCar(c,pts,{glow:hintOn&&hintCar===c.id,flash:flash[c.id]>t&&Math.sin(t*30)>0,dir:[DX[effD(c)],DY[effD(c)]],sq,alpha:al,mood:md});
  }
  for(const c of top){const a=anims[c.id];const dur=a.driveEnd-a.t0,el=t-a.t0,ant=Math.min(0.11,dur*0.35);let s,sq;
@@ -1748,6 +1768,7 @@ function frameInner(){
   if(jumpy(a.poly,s,c.len)){if(!a.tun){a.tun=1;sfx('ui');for(const q of L.portal?portalPair():[])for(let k=0;k<5;k++)puff(gx(q[0])+(Math.random()-0.5)*cell*0.5,gy(q[1])+(Math.random()-0.5)*cell*0.5,cell*0.14)}continue}
   drawCar(c,carPts(a.poly,s,c.len),{dir:dirAt(a.poly,s),state:false,sq,mood:'happy',alpha:L.cars[c.id]&&S.fl&&a.ghost?0.55:null})}
  for(const c of L.cars){if(c.liftUnder>=0&&!S.gone[c.id]&&!S.gone[c.liftUnder]&&!anims[c.id]){const m=L.cells[c.id],mx=(m[0][0]+m[m.length-1][0])/2,my=(m[0][1]+m[m.length-1][1])/2;drawPill(gx(mx),gy(my)-cell*0.13-cell*0.36,'2F','#30343f')}}
+ for(const c of L.cars){if(c.meter>=0&&!S.gone[c.id]&&!anims[c.id]){const m=L.cells[c.id],mx=(m[0][0]+m[m.length-1][0])/2,my=(m[0][1]+m[m.length-1][1])/2,left=c.meter-S.dep;const hot=left<=0;cx.save();if(hot){const k=1+0.12*Math.sin(t*10);cx.translate(gx(mx),gy(my)+cell*0.36);cx.scale(k,k);cx.translate(-gx(mx),-(gy(my)+cell*0.36))}drawPill(gx(mx),gy(my)+cell*0.36,(hot?'GO NOW':'\u23F1 '+left),hot?'#e3343b':'#e98a15');cx.restore()}}
  // fog overlay
  if(L.fog){cx.save();for(let i=0;i<6;i++){const fx_=lotX+((Math.sin(t*0.12+i*1.7)+1)/2)*L.w*cell,fy=lotY+((Math.cos(t*0.09+i*2.3)+1)/2)*L.h*cell,r=cell*(2+i%3);const g=cx.createRadialGradient(fx_,fy,0,fx_,fy,r);g.addColorStop(0,'rgba(240,244,250,.28)');g.addColorStop(1,'rgba(240,244,250,0)');cx.fillStyle=g;cx.fillRect(fx_-r,fy-r,r*2,r*2)}cx.restore()}
  // bay cars (visits)
@@ -1796,7 +1817,7 @@ function frameInner(){
   const A=along(qPath,qCum,d),lane=(q%ab)-(ab-1)/2,rid=S.qid[q],jit=((rid*37)%7-3)*ps*0.015;
   let x=A.p[0]-A.t[1]*lane*ps*0.5+jit,y=A.p[1]+A.t[0]*lane*ps*0.5*0.75+jit*0.6+ps*0.06;
   const hop=moving>0.03?-Math.abs(Math.sin(rel*Math.PI*1.3+rid))*ps*0.16*Math.min(1,moving*2):0;
-  crowd.push({x,y:y+hop+(q===started?-Math.max(0,Math.sin(t*5))*ps*0.12:0),q,rid,col:S.q[q]})}
+  crowd.push({x,y:y+hop+(q===started?-Math.max(0,Math.sin(t*5))*ps*0.12:0),q,rid,col:(L.mystery&&q>=S.qi+4&&S.q[q]>=0)?-2:S.q[q]})}
  crowd.sort((a,b)=>a.y-b.y);
  hatOn=save.equip.hat;
  for(const r_ of crowd){const si=clamp01((t-introT0-0.004*(r_.q-started))/0.4);if(si<=0)continue;if(si<1){cx.save();cx.translate(r_.x,r_.y);const k=easeOutBack(si);cx.scale(k,k);drawPerson(0,0,ps,r_.col,t,true,r_.rid);if(isVip(r_.rid))drawCrown(0,0,ps);cx.restore()}else{drawPerson(r_.x,r_.y,ps,r_.col,t,true,r_.rid);if(isVip(r_.rid))drawCrown(r_.x,r_.y,ps)}}
@@ -1865,6 +1886,11 @@ function drawRail(t){const y=gy(L.rail),x0=lotX,x1=lotX+L.w*cell,on=trainOn(L,S.
 function drawLiftUnder(pts){cx.save();const a=pts[0],b=pts[pts.length-1],o=cell*0.13;cx.strokeStyle='#ffd02b';cx.lineWidth=Math.max(2,cell*0.08);cx.lineCap='round';for(const p of[a,b]){cx.beginPath();cx.moveTo(p[0],p[1]);cx.lineTo(p[0],p[1]+o);cx.stroke()}cx.restore()}
 function drawPill(x,y,txt,bg){cx.save();cx.font='900 '+Math.max(10,cell*0.22)+'px Nunito, system-ui, sans-serif';const w=cx.measureText(txt).width+cell*0.22,h=Math.max(14,cell*0.3);cx.fillStyle=bg;rr(x-w/2,y-h/2,w,h,h/2);cx.fill();cx.fillStyle='#fff';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(txt,x,y+1);cx.restore()}
 
+function drawTurntable(x,y,c,d,t,off){cx.save();cx.fillStyle='#30343f';cx.beginPath();cx.arc(x,y,c*0.42,0,7);cx.fill();cx.strokeStyle=INK;cx.lineWidth=Math.max(2,c*0.06);cx.stroke();
+ cx.strokeStyle='#ffd02b';cx.lineWidth=Math.max(1.5,c*0.04);cx.setLineDash([c*0.08,c*0.07]);cx.beginPath();cx.arc(x,y,c*0.34,0,7);cx.stroke();cx.setLineDash([]);
+ if(!off){cx.translate(x,y);cx.rotate(d*Math.PI/2);cx.fillStyle='#ffd02b';cx.strokeStyle=INK;cx.lineWidth=Math.max(1.5,c*0.04);cx.beginPath();cx.moveTo(0,-c*0.3);cx.lineTo(c*0.2,-c*0.04);cx.lineTo(c*0.07,-c*0.04);cx.lineTo(c*0.07,c*0.24);cx.lineTo(-c*0.07,c*0.24);cx.lineTo(-c*0.07,-c*0.04);cx.lineTo(-c*0.2,-c*0.04);cx.closePath();cx.fill();cx.stroke()}
+ cx.restore()}
+
 function comicBurst(x,y,rx,ry,fill){cx.save();cx.beginPath();const n=14;for(let i=0;i<=n*2;i++){const a=i/(n*2)*Math.PI*2,k=i%2?0.72:1;cx.lineTo(x+Math.cos(a)*rx*k*(1+0.06*Math.sin(i*1.7)),y+Math.sin(a)*ry*k)}cx.closePath();cx.fillStyle=fill;cx.fill();cx.lineWidth=Math.max(2.5,ry*0.09);cx.strokeStyle=INK;cx.lineJoin='round';cx.stroke();cx.restore()}
 function drawBirds(t){const per=24,k=Math.floor(t/per),u=(t%per)/7;if(u>1)return;const r=mulberry32(k*977+13),y0=ch*(0.15+r()*0.6),dir=r()<0.5?1:-1;cx.save();for(let i=0;i<3;i++){const x=dir>0?-40+u*(cw+80)-i*26:cw+40-u*(cw+80)+i*26,y=y0+i*14+Math.sin(t*3+i)*6,f=Math.sin(t*14+i*2)*6,sz=Math.max(7,cell*0.18);cx.fillStyle='rgba(0,0,0,.1)';cx.beginPath();cx.ellipse(x+20,y+30,sz*0.8,sz*0.3,0,0,7);cx.fill();cx.strokeStyle=INK;cx.lineWidth=2.5;cx.lineCap='round';cx.beginPath();cx.moveTo(x-sz,y-f*0.6);cx.quadraticCurveTo(x-sz*0.4,y-sz*0.5-f*0.3,x,y);cx.quadraticCurveTo(x+sz*0.4,y-sz*0.5-f*0.3,x+sz,y-f*0.6);cx.stroke()}cx.restore()}
 function drawIntroIcon(k){
@@ -1885,6 +1911,11 @@ function drawIntroIcon(k){
  else if(k==='taxi')drawCar(Object.assign({},fake,{len:1,color:2,cap:2}),[[96,96],[96,96]],{th:56,col:COL[2],dir:[1,0]});
  else if(k==='rainbow')drawPerson(96,100,120,-1,0,false,5);
  else if(k==='ferry'){const g=cx.createLinearGradient(0,40,0,152);g.addColorStop(0,'#3d9be0');g.addColorStop(1,'#2a7fc4');cx.fillStyle=g;rr(20,52,152,88,18);cx.fill();drawVehicle({id:-1,len:3,color:1,cap:14,variant:'ferry'},96,96,0,130,50,COL[1],{variant:'ferry'})}
+ else if(k==='turntable'){drawTurntable(96,96,130,1,0)}
+ else if(k==='meter'){drawCar(Object.assign({},fake,{color:3}),[[64,96],[128,96]],{th:46,col:COL[3],dir:[1,0]});cx=g;const oc=cell;cell=64;drawPill(96,140,'\u23F1 2','#e98a15');cell=oc}
+ else if(k==='sleepy'){drawCar(Object.assign({},fake,{color:4}),[[64,96],[128,96]],{th:46,col:COL[4],dir:[1,0],mood:'sleep'})}
+ else if(k==='mystery'){drawPerson(66,104,90,1,0,false,3);drawPerson(126,104,90,-2,0,false,8)}
+ else if(k==='bendy'){drawCar(Object.assign({},fake,{len:4,color:7,variant:'bendy',cap:16}),[[30,96],[162,96]],{th:40,col:COL[7],dir:[1,0]})}
  else if(k==='tunnel'){drawPortal(56,96,64,1.2);drawPortal(136,96,64,0.4)}
  else if(k==='lift'){drawCar(Object.assign({},fake,{color:1}),[[64,108],[128,108]],{th:46,col:COL[1],dir:[1,0]});drawCar(Object.assign({},fake,{color:0}),[[64,86],[128,86]],{th:46,col:COL[0],dir:[1,0]})}
  else if(k==='train'){g.fillStyle='#8b5a36';for(let x=24;x<170;x+=20)g.fillRect(x,72,8,48);g.fillStyle='#9aa3b2';g.fillRect(20,80,152,5);g.fillRect(20,108,152,5);g.fillStyle='#2c66e0';rr(40,70,112,52,12);g.fill();g.fillStyle='#fff';rr(54,80,84,16,5);g.fill();g.fillStyle='#ff3b30';g.beginPath();g.arc(30,48,9,0,7);g.fill()}
@@ -1941,7 +1972,7 @@ function pwBlock(k){
   case'cut':{if(!pc.size)return'Park a car first';const rest=S.q.slice(S.qi);const j=rest.findIndex(c=>pc.has(c));return j>0?'':j===0?'Next rider already fits':'Nobody fits a parked car'}
   case'sort':return S.q.length-S.qi>1?'':'Line is too short';
   case'fog':return L.fog&&L.cars.some(c=>!S.gone[c.id]&&!S.rev[c.id])?'':'No fog on this level';
-  case'heat':return!S.thaw&&L.cars.some(c=>!S.gone[c.id]&&c.frozen>S.dep)?'':'Nothing frozen here';
+  case'heat':return!S.thaw&&L.cars.some(c=>!S.gone[c.id]&&(c.frozen>S.dep||(c.sleep&&!asleepOk(L,S,c))))?'':'Nothing frozen or asleep here';
   case'key':return!S.unlock&&L.cars.some(c=>c.lock>=0&&!S.gone[c.lock]&&!S.gone[c.id])?'':'Nothing locked here';
   case'gate':return!S.gatesOpen&&(L.gate.some(g_=>g_>=0)||L.rail>=0)?'':'No gates or trains on this level';
   case'cone':return!S.noCones&&L.wall.some(w_=>w_)?'':'No cones on this level';
@@ -2034,7 +2065,7 @@ function doPwr(k,arg){
     else{const j=rest.findIndex(r_=>pc.has(r_[0]));if(j<=0){toast(j===0?'The front rider already matches.':'Nobody in line matches a parked car yet.');return}out=rest.slice();const m=out.splice(j,1)[0];out.unshift(m)}}
    out.forEach((r_,i)=>{S.q[S.qi+i]=r_[0];S.qid[S.qi+i]=r_[1]});board(L,S,ev);fxAt=[qFront[0],qFront[1]+cell*0.3];break}
   case'fog':if(!L.fog){toast('There is no fog on this lot.');return}S.rev.fill(1);break;
-  case'heat':if(!L.cars.some(c=>!S.gone[c.id]&&c.frozen>S.dep)||S.thaw){toast('Nothing is frozen right now.');return}S.thaw=1;for(const c of L.cars)if(c.frozen>S.dep&&!S.gone[c.id]){const p_=carAt(c.id);burst(p_[0],p_[1],'#bfe6ff',14)}break;
+  case'heat':if(!L.cars.some(c=>!S.gone[c.id]&&(c.frozen>S.dep||(c.sleep&&!asleepOk(L,S,c))))||S.thaw){toast('Nothing is frozen or asleep right now.');return}S.thaw=1;for(const c of L.cars)if(c.frozen>S.dep&&!S.gone[c.id]){const p_=carAt(c.id);burst(p_[0],p_[1],'#bfe6ff',14)}break;
   case'key':if(!L.cars.some(c=>c.lock>=0&&!S.gone[c.lock]&&!S.gone[c.id])||S.unlock){toast('Nothing is locked right now.');return}S.unlock=1;break;
   case'gate':if(!(L.gate.some(g_=>g_>=0)||L.rail>=0)||S.gatesOpen){toast('There are no gates or trains here.');return}S.gatesOpen=1;break;
   case'cone':if(!L.wall.some(w_=>w_)||S.noCones){toast('There are no cones on this lot.');return}S.noCones=1;for(let i=0;i<L.w*L.h;i++)if(L.wall[i])puff(gx(i%L.w),gy((i/L.w)|0),cell*0.4,'255,170,90');break;
@@ -2052,7 +2083,7 @@ function doPwr(k,arg){
 function rollLoot(n){const lv=mode.type==='level'?mode.n:save.unlocked;const pool=PWR.filter(p=>(p.min||0)<=lv);const out=[];for(let i=0;i<n;i++){const P=pool[Math.floor(Math.random()*pool.length)];save.inv[P.k]=(save.inv[P.k]||0)+1;out.push(P.k)}return out}
 
 // ---------- endless mode ----------
-const MECHS=[['bus','Buses'],['cones','Cones'],['frozen','Frozen cars'],['fog','Fog'],['arrows','Arrows'],['locks','Locks'],['gates','Gates'],['taxi','Taxis'],['rainbow','Rainbow riders'],['ferry','Ferries'],['vip','VIP riders'],['towzone','Tow zone'],['wash','Car wash'],['rush','Rush hour'],['tunnel','Tunnels'],['lift','Lifts'],['train','Trains']];
+const MECHS=[['bus','Buses'],['cones','Cones'],['frozen','Frozen cars'],['fog','Fog'],['arrows','Arrows'],['locks','Locks'],['gates','Gates'],['taxi','Taxis'],['rainbow','Rainbow riders'],['ferry','Ferries'],['vip','VIP riders'],['towzone','Tow zone'],['wash','Car wash'],['rush','Rush hour'],['tunnel','Tunnels'],['lift','Lifts'],['train','Trains'],['turntable','Turntables'],['meter','Meters'],['sleepy','Sleepy drivers'],['mystery','Mystery riders'],['bendy','Bendy buses']];
 if(!save.endless)save.endless={size:1,diff:1,colors:5,stops:5,feats:['bus','cones'],start:1};
 if(!save.best)save.best={};
 function endlessKey(o){return[o.size,o.diff,o.colors,o.stops,o.feats.slice().sort().join('+')].join('|')}
@@ -2105,8 +2136,8 @@ const ACH=[
 function achProg(a){if(a[3]==='garage')return Object.keys(save.garage).filter(k=>save.garage[k]>0).length;return save.stats[a[3]]||0}
 function achNeed(a){return a[3]==='garage'?Object.keys(VCAP).length:a[4]}
 function checkAch(){for(const a of ACH){if(save.ach[a[0]])continue;if(achProg(a)>=achNeed(a)){save.ach[a[0]]=Date.now();const got=rollLoot(1);save.coins=(save.coins||0)+25;setTimeout(()=>{toast('\u{1F3C6} Achievement: '+a[1]+'! +1 '+PW[got[0]].n+', +25 coins');sfx('combo',5);buzz([30,40,60])},900)}}}
-const VINFO={taxi:'Zips through tiny gaps.',bubble:'Round, cheerful and very small.',mini:'Small outside, roomy inside.',sport:'Fast, but only two seats.',beetle:'A classic curvy runabout.',sedan:'The everyday family car.',hatch:'Compact with a handy back door.',jeep:'Built for rough roads.',pickup:'Riders sit up front and in back.',van:'Lots of room for a crowd.',camper:'A tiny house on wheels.',limo:'Long, shiny and fancy.',tram:'Glides along in a straight line.',bus:'The classic city bus.',coach:'The biggest road vehicle here.',ferry:'Sails the canal, seats 14.'};
-const VORDER=['taxi','bubble','mini','sport','beetle','sedan','hatch','jeep','pickup','van','camper','limo','tram','bus','coach','ferry'];
+const VINFO={bendy:'Four spaces long with a squeezy middle. Seats 16.',taxi:'Zips through tiny gaps.',bubble:'Round, cheerful and very small.',mini:'Small outside, roomy inside.',sport:'Fast, but only two seats.',beetle:'A classic curvy runabout.',sedan:'The everyday family car.',hatch:'Compact with a handy back door.',jeep:'Built for rough roads.',pickup:'Riders sit up front and in back.',van:'Lots of room for a crowd.',camper:'A tiny house on wheels.',limo:'Long, shiny and fancy.',tram:'Glides along in a straight line.',bus:'The classic city bus.',coach:'The biggest road vehicle here.',ferry:'Sails the canal, seats 14.'};
+const VORDER=['taxi','bubble','mini','sport','beetle','sedan','hatch','jeep','pickup','van','camper','limo','tram','bus','coach','bendy','ferry'];
 const vIconCache={};
 function vehIcon(v,lock){const key=v+(lock?'L':'');if(vIconCache[key])return vIconCache[key];const len=v==='ferry'||['bus','coach','tram','camper','limo'].includes(v)?3:['taxi','bubble','mini'].includes(v)?1:2;
  const c2=document.createElement('canvas');c2.width=192;c2.height=96;const g=c2.getContext('2d');const old=cx,oc=cell,S0=S;cx=g;cell=48;S={dep:0,gone:[0],rev:[1],flip:{},paint:{}};
