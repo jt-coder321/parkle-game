@@ -1,7 +1,4 @@
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#a7d49c">
-<link rel="icon" href="icon-192.png">
-<title>Parkle</title>
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#a7d49c"><link rel="icon" href="icon-192.png"><title>Parkle</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -236,6 +233,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .lootc img{width:30px;height:30px}
 #enBody{display:flex;flex-direction:column;gap:8px}
 @media (max-width:380px){.act{font-size:14px;gap:5px}.act svg{width:17px;height:17px}}
+.act{min-width:0;white-space:nowrap;overflow:hidden;padding:0 6px}
+#bar{gap:6px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+@media (max-width:460px){.act{font-size:14px;gap:4px;height:46px;border-radius:14px}.act svg{width:16px;height:16px}.act .n{font-size:11px;padding:1px 5px}.hcost{font-size:10px;padding:0 4px;margin-left:2px}}
+@media (max-width:360px){.act .n,.hcost{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ===== cartoon pass: ink outlines, chunky bouncy buttons, comic titles ===== */
@@ -1241,8 +1242,8 @@ function layout(){
   const hi=Math.min((cw-side*2)/(L.w+1.1),(ch-8)/(L.h+1.1+2.2),96);
   for(let c=hi;c>cell;c-=1){const ps_=Math.min(c*0.66,34),lw_=ps_*0.5*3+ps_*0.32,sl_=ps_*0.58,zw_=cw-32,rl_=zw_-lw_,need_=L.queue.length/3*sl_;
    const bw_=Math.min(c*1.9,(cw-side*2-Math.max(4,c*0.1)*(nS-1))/nS),bh_=Math.min(c*1.45,bw_*0.95);
-   const rows_=Math.min(6,1+Math.ceil(Math.max(0,need_-(zw_/2-lw_/2))/rl_));const tot=rows_*lw_+ps_*0.6+bh_+c*0.75+(L.h+1.1)*c+8;
-   if(tot<=ch&&rows_>=Math.min(3,1+Math.ceil(Math.max(0,need_-(zw_/2-lw_/2))/rl_))){cell=c;break}}
+   const rows_=Math.max((L.ring||1)>1?3:1,Math.min(6,1+Math.ceil(Math.max(0,need_-(zw_/2-lw_/2))/rl_)));const tot=rows_*lw_+ps_*0.6+bh_+c*0.75+(L.h+1.1)*c+8;
+   if(tot<=ch&&rows_>=Math.min((L.ring||1)>1?3:3,1+Math.ceil(Math.max(0,need_-(zw_/2-lw_/2))/rl_))){cell=c;break}}
  }
  bayGap=Math.max(4,cell*0.1);
  bayW=Math.min(cell*(wide?1.9:2.3),(cw-side*2-bayGap*(nS-1))/nS);bayH=Math.min(cell*1.45,bayW*0.95);
