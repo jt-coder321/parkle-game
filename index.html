@@ -1181,7 +1181,7 @@ let L=null,S=null,hist=[],mode={type:'level',n:1},undos=0,hints=0,ended=false,en
 const cv=$('cv');let cx=cv.getContext('2d');const mainCx=cx;
 let dpr=1,cw=0,ch=0,cell=40,lotX=0,lotY=0,qY=0,qX0=0,sp=20,ps=18,bayY=0,bayW=60,bayH=50,bayX0=0,bayGap=6,topY=0;
 let anims={},visits=[],pList=[],qBase=0,qOff=0,qClock=0,bayFree=[],fx=[],parts=[],floaters=[],flakes=[],hintCar=-1,hintUntil=0,flash={},shakeBays=0,combo=0,lastLeave=-9,decor=[];
-var riderStyle=-1,lowQ=0,qSamp=[],sprC=new Map(),lotC=null,ringHold=false,ringC=null,ringR=0,ringPaths=null,dispPos={},ringSlots=[],belt=null,ringRX=0,ringIsl=0,ringSlotOf={};
+var riderStyle=-1,lowQ=0,qSamp=[],sprC=new Map(),lotC=null,ringHold=false,ringC=null,ringR=0,ringPaths=null,dispPos={},ringSlots=[],ringRX=0,ringIsl=0,ringSlotOf={};
 let vClock=performance.now()/1000,vReal=performance.now();const now=()=>{const r=performance.now();vClock+=(r-vReal)/1000*(save.settings.fast?1.6:1)*(ringHold?2.6:1);vReal=r;return vClock};
 const ccol=c=>(S&&S.paint&&S.paint[c.id]!=null)?S.paint[c.id]:c.color;
 const tailHead=id=>(S.flip&&S.flip[id])?L.cells[id].map(p=>[p[0],p[1]]):L.cells[id].slice().reverse().map(p=>[p[0],p[1]]);
@@ -1264,12 +1264,18 @@ function layout(){
  const P=[[cw/2,yr(0)],[x1,yr(0)]];for(let k=1;k<rows;k++){P.push([P[P.length-1][0],yr(k)]);P.push([k%2?x0:x1,yr(k)])}
  qPath=P;qCum=cumOf(P);qTotal=qCum[qCum.length-1];qFront=P[0];qX0=qFront[0];qY=qFront[1];
  ringC=null;ringPaths=null;
- if((L.ring||1)>1){const bwid=Math.max(ps*0.78,Math.min(laneW*0.8,ps*0.95)),W_=Math.min(cw-20,cw>620?cw*0.72:cw),X0=(cw-W_)/2+bwid/2+2,X1=cw-X0,Y0=qTop+bwid*0.15,Y1=qBot-bwid*0.55,r=Math.max(bwid*0.8,Math.min((Y1-Y0)/2,ps*1.7)),cxm=cw/2;
-  const P=[[cxm,Y0],[X1-r,Y0]];const arc=(cx_,cy_,a0,a1)=>{for(let k=1;k<=10;k++){const a=a0+(a1-a0)*k/10;P.push([cx_+Math.cos(a)*r,cy_+Math.sin(a)*r])}};
-  arc(X1-r,Y0+r,-Math.PI/2,0);P.push([X1,Y1-r]);arc(X1-r,Y1-r,0,Math.PI/2);P.push([X0+r,Y1]);arc(X0+r,Y1-r,Math.PI/2,Math.PI);P.push([X0,Y0+r]);arc(X0+r,Y0+r,Math.PI,Math.PI*1.5);P.push([cxm,Y0]);
-  const C_=cumOf(P),T_=C_[C_.length-1],NT=Math.ceil((L.ring||8)*1.04);belt={X0,X1,Y0,Y1,r,bw:bwid,P,C:C_,T:T_,NT,bottomS:C_[0]+(X1-r-cxm)+Math.PI*r/2+(Y1-r-Y0-r)+Math.PI*r/2+(X1-r-cxm)};
-  ringSlots=[];for(let k=0;k<NT;k++)ringSlots.push({s:k*T_/NT});ringSlotOf={};ringR=(Y1-Y0)/2;ringRX=(X1-X0)/2;ringC=[cxm,(Y0+Y1)/2];ringIsl=0;ringPaths=null;
-  qFront=[cxm,Y1];qX0=qFront[0];qY=qFront[1]}
+ if((L.ring||1)>1){const avail=qBot-qTop;ringR=Math.max(ps*1.2,Math.min((avail-ps*0.55)/2,cw*0.26,ps*3.6));ringRX=ringR;ringC=[cw/2,qBot-ringR-ps*0.05];
+  {const NT=Math.ceil((L.ring||8)*1.04),samp=[],N=720;let tot=0,px=null,py=null;for(let i=0;i<=N;i++){const a=i/N*Math.PI*2,x=Math.cos(a)*ringRX,y=Math.sin(a)*ringR;if(px!=null)tot+=Math.hypot(x-px,y-py);samp.push([a,tot]);px=x;py=y}
+   const two=tot/NT<ps*0.55,rows=two?[[0,0],[ps*0.62,ps*0.62]]:[[0,0]],per=two?Math.ceil(NT/2):NT;ringSlots=[];
+   for(const[dx,dy]of rows){for(let k=0;k<per;k++){const target=(k+(dx?0.5:0))/per*tot;let j=0;while(j<samp.length-1&&samp[j][1]<target)j++;ringSlots.push({a:samp[j][0],rx:ringRX-dx,ry:ringR-dy})}}
+   ringIsl=Math.max(ps*0.5,ringR-laneW*0.75-(two?ps*0.5:0));ringSlotOf={}}
+  qFront=[cw/2,ringC[1]+ringR];qX0=qFront[0];qY=qFront[1];
+  // two winding feeders, one from each side, snaking down into the circle
+  const mk=sg=>{const X=x=>cw/2+sg*(x-cw/2),a0=Math.PI*0.3,ex=cw/2+Math.cos(a0)*(ringR+laneW*0.25),ey=ringC[1]-Math.sin(a0)*(ringR+laneW*0.25),ty_=qTop+laneW*0.45,vy=Math.min(ringC[1]+ringR*0.35,qBot-laneW*0.6),xe=Math.min(cw-laneW*0.6,cw-bayX0-laneW*0.45),w_=Math.max(laneW*2,xe-ex);
+   const K=[[ex,ey],[ex+w_*0.12,ty_],[ex+w_*0.42,vy],[ex+w_*0.72,ty_],[xe,ty_+(vy-ty_)*0.35]],Q=[];
+   for(let i=0;i<K.length-1;i++){const p0=K[Math.max(0,i-1)],p1=K[i],p2=K[i+1],p3=K[Math.min(K.length-1,i+2)];for(let k=0;k<14;k++){const u=k/14,u2=u*u,u3=u2*u;Q.push([0,1].map(d=>0.5*(2*p1[d]+(-p0[d]+p2[d])*u+(2*p0[d]-5*p1[d]+4*p2[d]-p3[d])*u2+(-p0[d]+3*p1[d]-3*p2[d]+p3[d])*u3)))}}
+   Q.push(K[K.length-1]);const M=Q.map(([x,y])=>[X(x),y]);return{P:M,C:cumOf(M)}};
+  ringPaths=[mk(1),mk(-1)];ringPaths.forEach(r_=>r_.T=r_.C[r_.C.length-1])}
 }
 window.addEventListener('resize',()=>{layout()});
 if(window.ResizeObserver)new ResizeObserver(()=>layout()).observe($('stage'));
@@ -1286,7 +1292,7 @@ function makeDecor(){
 cv.addEventListener('pointerdown',e=>{
  ensureAudio();if(ended||anyOverlay())return;
  const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
- if(ringC&&belt&&x>belt.X0-belt.bw&&x<belt.X1+belt.bw&&y>belt.Y0-belt.bw&&y<belt.Y1+belt.bw*0.6){ringHold=true;if(!save.seen.ringTip){save.seen.ringTip=1;persist();toast('Keep holding to make the riders walk faster.')}return}
+ if(ringC&&Math.pow((x-ringC[0])/(ringRX+laneW*0.5),2)+Math.pow((y-ringC[1])/(ringR+laneW*0.5),2)<1){ringHold=true;if(!save.seen.ringTip){save.seen.ringTip=1;persist();toast('Keep holding to make the riders walk faster.')}return}
  if(y>=bayY-4&&y<=bayY+bayH+4){const b=Math.floor((x-bayX0)/(bayW+bayGap));if(b>=0&&b<slotCount()){
   if(target==='sweep'){if(S.bays[b]){const k=target;target=null;doPwr(k,b)}else toast('Tap a stop that has a car in it.');return}
   if(b>=S.bays.length){if(invCount('stop'))doPwr('stop');else toast('This stop is locked. Earn Extra Stop power-ups by clearing levels.');return}}}
@@ -2072,14 +2078,14 @@ function frameInner(){
  crowd.sort((a,b)=>a.y-b.y);
  hatOn=save.equip.hat;
  for(const r_ of crowd){const si=clamp01((t-introT0-0.004*(r_.q-started))/0.4);if(si<=0)continue;if(si<1){cx.save();cx.translate(r_.x,r_.y);const k=easeOutBack(si);cx.scale(k,k);drawPerson(0,0,ps,r_.col,t,true,r_.rid);if(isVip(r_.rid))drawCrown(0,0,ps);cx.restore()}else{drawPerson(r_.x,r_.y,ps,r_.col,t,true,r_.rid);if(isVip(r_.rid))drawCrown(r_.x,r_.y,ps)}}
- if(over>0){const E=qPath[qPath.length-1];const lbl='+'+over;cx.font='800 '+Math.max(12,ps*0.5)+'px Nunito, system-ui, sans-serif';const w=cx.measureText(lbl).width+14,hx=Math.min(cw-12-w/2,Math.max(12+w/2,E[0])),hy=E[1];cx.fillStyle='#22283a';rr(hx-w/2,hy-ps*0.34,w,ps*0.68,ps*0.34);cx.fill();cx.fillStyle='#ffffff';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(lbl,hx,hy+1)}
+ if(over>0){const E=qPath[qPath.length-1];const lbl='+'+over;cx.font='800 '+Math.max(12,ps*0.5)+'px Nunito, system-ui, sans-serif';const w=cx.measureText(lbl).width+14,hx=Math.min(cw-6-w/2,Math.max(6+w/2,E[0])),hy=E[1]-ps*0.95;cx.fillStyle='#22283a';rr(hx-w/2,hy-ps*0.34,w,ps*0.68,ps*0.34);cx.fill();cx.fillStyle='#ffffff';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(lbl,hx,hy+1)}
  }
  // boarding riders
  riderMood='happy';
  for(let i=0;i<pList.length;i++){const p=pList[i];if(t<p.st)continue;const u=(t-p.st)/p.dur;if(u>=1){if(t>p.st+p.dur+1){pList.splice(i--,1);qBase++}continue}
   const[bx,by]=bayCenter(p.v.bay);const sp_=seatPos(bx,by,lenB,thB,L.cars[p.v.car].cap,p.seat);
   if(!p.from){const dp=dispPos[p.rid];p.from=dp?[dp.x,dp.y]:[qFront[0],qFront[1]]}
-  const W=(ringC&&belt)?(p.from[1]<ringC[1]-ps*0.3?[[p.from[0],p.from[1]],[p.from[0]<ringC[0]?belt.X0:belt.X1,p.from[1]],[p.from[0]<ringC[0]?belt.X0:belt.X1,belt.Y1],[qFront[0],walkY],[bx,walkY],[sp_[0],sp_[1]]]:[[p.from[0],p.from[1]],[p.from[0],belt.Y1],[qFront[0],walkY],[bx,walkY],[sp_[0],sp_[1]]]):[[p.from[0],p.from[1]],[qFront[0],walkY],[bx,walkY],[sp_[0],sp_[1]]],WC=cumOf(W),A=along(W,WC,u*WC[3]);
+  const W=ringC?[[p.from[0],p.from[1]],[ringC[0],ringC[1]+ps*0.3],[qFront[0],walkY],[bx,walkY],[sp_[0],sp_[1]]]:[[p.from[0],p.from[1]],[qFront[0],walkY],[bx,walkY],[sp_[0],sp_[1]]],WC=cumOf(W),A=along(W,WC,u*WC[3]);
   const qc=p.col,step=Math.abs(Math.sin(u*WC[WC.length-1]/(ps*0.32)));
   const k=u>0.82?1-(u-0.82)/0.18:1,sc=u>0.82?0.4+0.6*k:1;
   cx.save();cx.translate(A.p[0],A.p[1]-step*ps*0.12-(u>0.82?Math.sin((1-k)*Math.PI)*ps*0.35:0));cx.rotate(A.t[0]*0.12*(step-0.5));cx.scale(sc,sc);
@@ -2721,45 +2727,34 @@ function tryResume(){const r=save.resume;if(!r||!r.mode)return false;try{const m
 window.__parkle={showLose,PWR,pwBlock,ccol,audio:()=>({AC,master}),showGift,showGuide,tryResume,saveResume,get popIdx(){return popIdx},showShop,showPacks,startPack,openChest,showGoals,goalBump,get tut(){return tut},showWin,showLose,showMenu,showLevels,showSettings,showEndless,showPick,hideAll,save:()=>save,doPwr:(k,a)=>doPwr(k,a),startEndless:()=>startEndless(),get mode(){return mode},inv:()=>save.inv,showBoosts:()=>showBoosts(),dbg:()=>({fx:fx.map(f=>f.at),now:now(),done:animsDone(),tok:endToken}),get L(){return L},get S(){return S},tapCar,doUndo,doHint,startLevel,get ended(){return ended},layout,get cell(){return cell},get lot(){return[lotX,lotY]}};
 
 // ---- boarding circle: riders walk around it, and any of them can hop into a matching car ----
-function drawRingQueue(t,dt,started,T){if(!belt)return;const B=belt,W=Math.min(L.ring,S.q.length-started),walkC=T.night?'#2c3462':mixHex(T.walk,'#000000',0.06),rs=ps*0.8,cxm=ringC[0];
+function drawRingQueue(t,dt,started,T){const W=Math.min(L.ring,S.q.length-started),R=ringR,[cx0,cy0]=ringC,walkC=T.night?'#2c3462':mixHex(T.walk,'#000000',0.06),rs=ps*0.74;
  cx.lineCap='round';cx.lineJoin='round';
- // the belt
- strokePoly(B.P,B.bw+8,T.curb);strokePoly(B.P,B.bw,walkC);
- // boarding edge along the bottom straight
- cx.fillStyle='rgba(255,210,63,.55)';rr(B.X0+B.r,B.Y1-B.bw/2,B.X1-B.X0-B.r*2,B.bw,B.bw/2);cx.fill();
- // moving chevrons show which way the belt turns
- const off=(t*ps*0.55)%B.T;cx.strokeStyle='rgba(255,255,255,.75)';cx.lineWidth=Math.max(1.5,ps*0.07);
- for(let k=0;k<14;k++){const d=(k/14*B.T+off)%B.T,A=along(B.P,B.C,d),a=Math.atan2(A.t[1],A.t[0]),sz=ps*0.16;cx.save();cx.translate(A.p[0],A.p[1]+B.bw*0.32);cx.rotate(a);cx.beginPath();cx.moveTo(-sz,-sz);cx.lineTo(sz*0.3,0);cx.lineTo(-sz,sz);cx.stroke();cx.restore()}
- // island + funnel of riders coming next
- const ix0=B.X0+B.bw*0.62,ix1=B.X1-B.bw*0.62,iy0=B.Y0+B.bw*0.62,iy1=B.Y1-B.bw*0.62;cx.fillStyle=T.grass;rr(ix0,iy0,ix1-ix0,iy1-iy0,Math.max(4,B.r-B.bw*0.62));cx.fill();cx.strokeStyle=INK;cx.lineWidth=2;cx.stroke();
- // two feeders: one funnel per side, each narrowing up into the belt
- const fs=ps*0.66,gap=fs*0.82,rowH=fs*0.92,br=Math.min(ps*0.55,(iy1-iy0)*0.3),hcx=cxm,hcy=iy1-br-ps*0.12,
-  nRows=Math.max(1,Math.min(5,Math.floor((iy1-iy0-fs*0.35)/rowH))),half=(ix1-ix0)/2-br-ps*0.35,fw=Math.max(gap*2,half-ps*0.3);
- const rowsN=[];let capS=0;for(let r=0;r<nRows;r++){const n=Math.max(1,Math.min(Math.floor(fw/gap),2+r*2));rowsN.push(n);capS+=n}
- const feed=[];for(const sd of [0,1]){const fcx=sd?(cxm+br*0.6+ix1)/2:(ix0+cxm-br*0.6)/2;feed.push({cx:fcx,s:sd?fcx-cxm:B.T-(cxm-fcx)})}
- const rest=Math.max(0,S.q.length-started-W),perS=Math.ceil(rest/2);let useR=0,cc=0;while(useR<nRows&&cc<perS){cc+=rowsN[useR];useR++}useR=Math.max(2,useR);const lastN=rowsN[Math.min(nRows,useR)-1];
- const fy0=B.Y0+B.bw*0.15,fy1=iy0+fs*0.45+Math.min(nRows,useR)*rowH;
- for(const F of feed){const nw=gap*1.4,bw2=lastN*gap+fs*0.4;cx.fillStyle=mixHex(walkC,'#ffffff',0.3);cx.strokeStyle='rgba(255,255,255,.95)';cx.lineWidth=3;cx.beginPath();cx.moveTo(F.cx-nw/2,fy0);cx.lineTo(F.cx+nw/2,fy0);cx.lineTo(F.cx+bw2/2,fy1);cx.lineTo(F.cx-bw2/2,fy1);cx.closePath();cx.fill();cx.stroke();
-  // arrow into the belt
-  cx.fillStyle='rgba(255,255,255,.9)';const ay=fy0+fs*0.05,aw=fs*0.32;cx.beginPath();cx.moveTo(F.cx,ay-aw);cx.lineTo(F.cx+aw,ay);cx.lineTo(F.cx-aw,ay);cx.closePath();cx.fill()}
- cx.fillStyle='rgba(43,36,64,.6)';cx.font='900 '+Math.max(9,ps*0.28)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText('NEXT',hcx,hcy-br-2);
- // hold-to-speed button between the feeders
- {const bx_=hcx,by_=hcy;cx.fillStyle=ringHold?'#ffd23f':'#ffffff';cx.strokeStyle=INK;cx.lineWidth=2;cx.beginPath();cx.arc(bx_,by_,br,0,7);cx.fill();cx.stroke();cx.fillStyle=INK;const tr=br*0.36;for(let k=0;k<2;k++){const ox=bx_-tr*0.95+k*tr*0.95;cx.beginPath();cx.moveTo(ox,by_-tr);cx.lineTo(ox+tr,by_);cx.lineTo(ox,by_+tr);cx.closePath();cx.fill()}}
- // keep every belt rider on its own spot
+ for(const rp of ringPaths){strokePoly(rp.P,laneW+7,T.curb);strokePoly(rp.P,laneW,walkC)}
+ // the big circle
+ const RX=ringRX,tw_=Math.max(laneW*0.9,ps*0.95);cx.lineWidth=tw_+8;cx.strokeStyle=T.curb;cx.beginPath();cx.ellipse(cx0,cy0,RX,R,0,0,7);cx.stroke();cx.lineWidth=tw_;cx.strokeStyle=walkC;cx.stroke();
+ // funnel lane from the middle down to the stops, with moving arrows
+ const fw=Math.max(10,ps*0.5);cx.fillStyle=walkC;rr(cx0-fw/2,cy0+R-tw_*0.3,fw,walkY-cy0-R+tw_*0.3,fw/2);cx.fill();
+ cx.fillStyle='rgba(255,255,255,.9)';const ch_=fw*0.55;for(let k=0;k<2;k++){const yy=cy0+R+tw_*0.5+((t*1.6*(ringHold?2:1)+k/2)%1)*Math.max(1,walkY-cy0-R-tw_*0.5-ch_*0.4);cx.beginPath();cx.moveTo(cx0-ch_*0.6,yy-ch_*0.35);cx.lineTo(cx0,yy+ch_*0.3);cx.lineTo(cx0+ch_*0.6,yy-ch_*0.35);cx.lineWidth=Math.max(2,ch_*0.28);cx.strokeStyle='rgba(255,255,255,.9)';cx.stroke()}
+ // island in the middle (hold to speed up)
+ const ir=Math.max(6,ringIsl);cx.fillStyle=T.grass;cx.beginPath();cx.arc(cx0,cy0,ir,0,7);cx.fill();cx.strokeStyle=INK;cx.lineWidth=2;cx.stroke();
+ {const br=Math.min(ir*0.62,ps*0.8);cx.fillStyle=ringHold?'#ffd23f':'#ffffff';cx.beginPath();cx.arc(cx0,cy0,br,0,7);cx.fill();cx.stroke();cx.fillStyle=INK;const tr=br*0.36;for(let k=0;k<2;k++){const ox=cx0-tr*0.95+k*tr*0.95;cx.beginPath();cx.moveTo(ox,cy0-tr);cx.lineTo(ox+tr,cy0);cx.lineTo(ox,cy0+tr);cx.closePath();cx.fill()}}
+ // neat spots on the track
+ {const rot0=-t*0.18;cx.fillStyle='rgba(255,255,255,.55)';cx.beginPath();for(const sl of ringSlots){const a=sl.a+rot0,x=cx0+Math.cos(a)*sl.rx,y=cy0+Math.sin(a)*sl.ry+ps*0.38;cx.moveTo(x+ps*0.16,y);cx.ellipse(x,y,ps*0.16,ps*0.06,0,0,7)}cx.fill()}
+ // riders: the first W walk around the circle, each keeps its own spot; the rest wait in the two side lanes
  if(drawRingQueue.L!==L){drawRingQueue.L=L;ringSlotOf={};dispPos={}}
- const roff=(t*ps*0.55)%B.T,ringIds=new Set(),taken=new Set();for(let q=started;q<started+W;q++){const rid=S.qid[q];ringIds.add(rid);if(ringSlotOf[rid]!=null)taken.add(ringSlotOf[rid])}
+ const rot=-t*0.18,ringIds=new Set(),taken=new Set();for(let q=started;q<started+W;q++){const rid=S.qid[q];ringIds.add(rid);if(ringSlotOf[rid]!=null)taken.add(ringSlotOf[rid])}
  for(const k in ringSlotOf)if(!ringIds.has(+k))delete ringSlotOf[k];
- const crowd=[],k_=Math.min(1,dt*7);let over=0;const sideN=[0,0],overS=[0,0];
- for(let q=started;q<S.q.length;q++){const i=q-started,rid=S.qid[q];let x,y,inRing=i<W,sz=rs;
-  if(inRing){let si=ringSlotOf[rid];if(si==null){let best=-1,bd=1e9;for(let k=0;k<ringSlots.length;k++){if(taken.has(k))continue;const ws=(ringSlots[k].s+roff)%B.T,e=feed[rid&1].s,dd=Math.abs(ws-e),d=Math.min(dd,B.T-dd);if(d<bd){bd=d;best=k}}si=ringSlotOf[rid]=best;taken.add(best)}
-   const A=along(B.P,B.C,((ringSlots[si]||{s:0}).s+roff)%B.T);x=A.p[0];y=A.p[1]+rs*0.18}
-  else{const sd=rid&1,j=sideN[sd]++;if(j>=capS){overS[sd]++;over++;continue}let r=0,jj=j;while(jj>=rowsN[r]){jj-=rowsN[r];r++}const n=rowsN[r];x=feed[sd].cx+(jj-(n-1)/2)*gap;y=iy0+fs*0.45+r*rowH;sz=fs}
+ const crowd=[],over=[0,0],sideN=[0,0],k_=Math.min(1,dt*7);
+ for(let q=started;q<S.q.length;q++){const i=q-started,rid=S.qid[q],sd=rid&1;let x,y,inRing=i<W;
+  if(inRing){let si=ringSlotOf[rid];if(si==null){const E=sd?-Math.PI*0.25:-Math.PI*0.75;let best=-1,bd=9;for(let k=0;k<ringSlots.length;k++){if(taken.has(k))continue;let d=Math.abs(((ringSlots[k].a+rot-E)%(Math.PI*2)+Math.PI*3)%(Math.PI*2)-Math.PI);if(d<bd){bd=d;best=k}}si=ringSlotOf[rid]=best;taken.add(best)}
+   const sl=ringSlots[si]||{a:0,rx:RX,ry:R},a=sl.a+rot;x=cx0+Math.cos(a)*sl.rx;y=cy0+Math.sin(a)*sl.ry+rs*0.2}
+  else{const rp=ringPaths[sd],pos=sideN[sd]++,rel=pos,lane=0,d=rel*ps*0.5+ps*0.3;if(d>rp.T-slotLen*0.3){over[sd]++;continue}const A=along(rp.P,rp.C,d);x=A.p[0]-A.t[1]*lane*ps*0.5;y=A.p[1]+A.t[0]*lane*ps*0.5*0.75+ps*0.06}
   let D=dispPos[rid];if(!D)D=dispPos[rid]={x,y};else{D.x+=(x-D.x)*k_;D.y+=(y-D.y)*k_}
-  const mv=Math.hypot(x-D.x,y-D.y)>1,hop=mv?-Math.abs(Math.sin(t*9+rid))*ps*0.09:0;
-  crowd.push({x:D.x,y:D.y+hop,q,rid,s:sz,col:(L.mystery&&i>=Math.max(4,L.ring)&&S.q[q]>=0)?-2:S.q[q]})}
+  const mv=Math.hypot(x-D.x,y-D.y)>1||inRing,hop=mv?-Math.abs(Math.sin(t*8+rid))*ps*0.08:0;
+  crowd.push({x:D.x,y:D.y+hop,q,rid,s:inRing?rs:ps*0.74,col:(L.mystery&&i>=Math.max(4,L.ring)&&S.q[q]>=0)?-2:S.q[q]})}
  crowd.sort((a,b)=>a.y-b.y);hatOn=save.equip.hat;
  for(const r_ of crowd){const si=clamp01((t-introT0-0.004*(r_.q-started))/0.4);if(si<=0)continue;cx.save();cx.translate(r_.x,r_.y);if(si<1){const k=easeOutBack(si);cx.scale(k,k)}drawPerson(0,0,r_.s,r_.col,t,true,r_.rid);if(isVip(r_.rid))drawCrown(0,0,r_.s);cx.restore()}
- for(const sd of [0,1])if(overS[sd]>0){const lbl='+'+overS[sd];cx.font='800 '+Math.max(10,ps*0.34)+'px Nunito, system-ui, sans-serif';const w=cx.measureText(lbl).width+12,hx=feed[sd].cx+(sd?1:-1)*(rowsN[nRows-1]*gap/2+w/2-2),hy=fy1-ps*0.15;cx.fillStyle='#22283a';rr(hx-w/2,hy-ps*0.26,w,ps*0.52,ps*0.26);cx.fill();cx.fillStyle='#ffffff';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(lbl,hx,hy+1)}
+ for(let sd=0;sd<2;sd++){if(!over[sd])continue;const lbl='+'+over[sd];cx.font='800 '+Math.max(12,ps*0.5)+'px Nunito, system-ui, sans-serif';const w=cx.measureText(lbl).width+14;const E=ringPaths[sd].P[ringPaths[sd].P.length-1],hx=Math.min(cw-6-w/2,Math.max(6+w/2,E[0])),hy=E[1]-ps*0.95;cx.fillStyle='#22283a';rr(hx-w/2,hy-ps*0.34,w,ps*0.68,ps*0.34);cx.fill();cx.fillStyle='#ffffff';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(lbl,hx,hy+1)}
  if(Object.keys(dispPos).length>S.q.length+40){const keep=new Set(S.qid.slice(started));for(const k in dispPos)if(!keep.has(+k))delete dispPos[k]}}
 // ---------- sceneries: 20 looks with animals, weather, landmarks, seasons and map extras ----------
 // extra looks (the first five live in THEMES at the top)
