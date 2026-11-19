@@ -2741,15 +2741,19 @@ function drawRingQueue(t,dt,started,T){const W=Math.min(L.ring,S.q.length-starte
  // neat spots on the track
  {const rot0=-t*0.18;cx.fillStyle='rgba(255,255,255,.55)';cx.beginPath();for(const sl of ringSlots){const a=sl.a+rot0,x=cx0+Math.cos(a)*sl.rx,y=cy0+Math.sin(a)*sl.ry+ps*0.38;cx.moveTo(x+ps*0.16,y);cx.ellipse(x,y,ps*0.16,ps*0.06,0,0,7)}cx.fill()}
  // riders: the first W walk around the circle, each keeps its own spot; the rest wait in the two side lanes
- if(drawRingQueue.L!==L){drawRingQueue.L=L;ringSlotOf={};dispPos={}}
+ if(drawRingQueue.L!==L){drawRingQueue.L=L;ringSlotOf={};dispPos={};drawRingQueue.ord={};drawRingQueue.seq=0}
+ if(drawRingQueue.sl!==ringSlots){drawRingQueue.sl=ringSlots;drawRingQueue.angOrd=ringSlots.map((sl,k)=>k).sort((a,b)=>((ringSlots[a].a%6.2832+6.2832)%6.2832)-((ringSlots[b].a%6.2832+6.2832)%6.2832))}
  const rot=-t*0.18,ringIds=new Set(),taken=new Set();for(let q=started;q<started+W;q++){const rid=S.qid[q];ringIds.add(rid);if(ringSlotOf[rid]!=null)taken.add(ringSlotOf[rid])}
  for(const k in ringSlotOf)if(!ringIds.has(+k))delete ringSlotOf[k];
- const crowd=[],over=[0,0],sideN=[0,0],k_=Math.min(1,dt*7);
+ // same colors gather together: each color keeps a stable place in the order, riders spread evenly round the circle
+ const ord_=drawRingQueue.ord,ringList=[],here=new Set();for(let q=started;q<started+W;q++){const c=S.q[q];here.add(c);if(ord_[c]==null)ord_[c]=++drawRingQueue.seq;ringList.push({rid:S.qid[q],c})}
+ for(const c in ord_)if(!here.has(+c))delete ord_[c];
+ ringList.sort((a,b)=>ord_[a.c]-ord_[b.c]||a.rid-b.rid);const AO=drawRingQueue.angOrd,tgt={};ringList.forEach((r_,k)=>{tgt[r_.rid]=AO[Math.floor(k*AO.length/Math.max(1,ringList.length))]});
+ const crowd=[],over=[0,0],sideN=[0,0],k_=Math.min(1,dt*7),kRing=Math.min(1,dt*2.2);
  for(let q=started;q<S.q.length;q++){const i=q-started,rid=S.qid[q],sd=rid&1;let x,y,inRing=i<W;
-  if(inRing){let si=ringSlotOf[rid];if(si==null){const E=sd?-Math.PI*0.25:-Math.PI*0.75;let best=-1,bd=9;for(let k=0;k<ringSlots.length;k++){if(taken.has(k))continue;let d=Math.abs(((ringSlots[k].a+rot-E)%(Math.PI*2)+Math.PI*3)%(Math.PI*2)-Math.PI);if(d<bd){bd=d;best=k}}si=ringSlotOf[rid]=best;taken.add(best)}
-   const sl=ringSlots[si]||{a:0,rx:RX,ry:R},a=sl.a+rot;x=cx0+Math.cos(a)*sl.rx;y=cy0+Math.sin(a)*sl.ry+rs*0.2}
+  if(inRing){const si=tgt[rid];const sl=ringSlots[si]||{a:0,rx:RX,ry:R},a=sl.a+rot;x=cx0+Math.cos(a)*sl.rx;y=cy0+Math.sin(a)*sl.ry+rs*0.2}
   else{const rp=ringPaths[sd],pos=sideN[sd]++,rel=pos,lane=0,d=rel*ps*0.5+ps*0.3;if(d>rp.T-slotLen*0.3){over[sd]++;continue}const A=along(rp.P,rp.C,d);x=A.p[0]-A.t[1]*lane*ps*0.5;y=A.p[1]+A.t[0]*lane*ps*0.5*0.75+ps*0.06}
-  let D=dispPos[rid];if(!D)D=dispPos[rid]={x,y};else{D.x+=(x-D.x)*k_;D.y+=(y-D.y)*k_}
+  let D=dispPos[rid];if(!D)D=dispPos[rid]={x,y};else{const kk=inRing?kRing:k_;D.x+=(x-D.x)*kk;D.y+=(y-D.y)*kk}
   const mv=Math.hypot(x-D.x,y-D.y)>1||inRing,hop=mv?-Math.abs(Math.sin(t*8+rid))*ps*0.08:0;
   crowd.push({x:D.x,y:D.y+hop,q,rid,s:inRing?rs:ps*0.74,col:(L.mystery&&i>=Math.max(4,L.ring)&&S.q[q]>=0)?-2:S.q[q]})}
  crowd.sort((a,b)=>a.y-b.y);hatOn=save.equip.hat;
