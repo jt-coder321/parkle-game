@@ -1181,7 +1181,7 @@ let L=null,S=null,hist=[],mode={type:'level',n:1},undos=0,hints=0,ended=false,en
 const cv=$('cv');let cx=cv.getContext('2d');const mainCx=cx;
 let dpr=1,cw=0,ch=0,cell=40,lotX=0,lotY=0,qY=0,qX0=0,sp=20,ps=18,bayY=0,bayW=60,bayH=50,bayX0=0,bayGap=6,topY=0;
 let anims={},visits=[],pList=[],qBase=0,qOff=0,qClock=0,bayFree=[],fx=[],parts=[],floaters=[],flakes=[],hintCar=-1,hintUntil=0,flash={},shakeBays=0,combo=0,lastLeave=-9,decor=[];
-var lowQ=0,qSamp=[],sprC=new Map(),lotC=null,ringHold=false,ringC=null,ringR=0,ringPaths=null,dispPos={},ringSlots=[],ringIsl=0,ringSlotOf={};
+var riderStyle=-1,lowQ=0,qSamp=[],sprC=new Map(),lotC=null,ringHold=false,ringC=null,ringR=0,ringPaths=null,dispPos={},ringSlots=[],ringIsl=0,ringSlotOf={};
 let vClock=performance.now()/1000,vReal=performance.now();const now=()=>{const r=performance.now();vClock+=(r-vReal)/1000*(save.settings.fast?1.6:1)*(ringHold?2.6:1);vReal=r;return vClock};
 const ccol=c=>(S&&S.paint&&S.paint[c.id]!=null)?S.paint[c.id]:c.color;
 const tailHead=id=>(S.flip&&S.flip[id])?L.cells[id].map(p=>[p[0],p[1]]):L.cells[id].slice().reverse().map(p=>[p[0],p[1]]);
@@ -1737,7 +1737,7 @@ function drawHead(x,y,r,v,blink){
 const MYST={l:'#d5d9e2',c:'#aeb5c2',d:'#8b93a3',dd:'#5d6577',n:'grey'};
 function drawPerson(x,y,s,colIdx,t,bob,seed){
  if(cx!==mainCx||seed==null||s>90)return drawPersonRaw(x,y,s,colIdx,t,bob,seed);
- const ph=(seed||0)*1.37,blink=bob&&((t*0.7+ph)%3.2)<0.09,key=seed+'|'+colIdx+'|'+Math.round(s*4)+'|'+(hatOn||'')+'|'+(riderMood||'')+'|'+(blink?1:0)+'|'+(save.settings.shapes?1:0)+(save.settings.cb?1:0)+(isVip(seed)?1:0);
+ const ph=(seed||0)*1.37,blink=bob&&((t*0.7+ph)%3.2)<0.09,key=seed+'|'+colIdx+'|'+Math.round(s*4)+'|'+(hatOn||'')+'|'+(riderMood||'')+'|'+(blink?1:0)+'|'+(save.settings.shapes?1:0)+(save.settings.cb?1:0)+(isVip(seed)?1:0)+'|'+riderStyle;
  let sp=sprC.get(key);
  if(!sp){if(sprC.size>1400)sprC.clear();const k=dpr*1.25,w=Math.ceil(s*1.8*k),h=Math.ceil(s*2.1*k),c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),old=cx;cx=g;g.setTransform(k,0,0,k,w/2,s*1.45*k);try{drawPersonRaw(0,0,s,colIdx,blink?0.0001+(3.2-ph%3.2)/0.7:0,false,seed,blink)}finally{cx=old}sp={c,w:w/k,h:h/k,oy:s*1.45};sprC.set(key,sp)}
  const yy=bob?Math.sin(t*4+ph)*s*0.035:0;
@@ -1746,7 +1746,19 @@ function drawPersonRaw(x,y,s,colIdx,t,bob,seed,forceBlink){
  const v=pvar(seed==null?Math.abs(Math.round(x)):seed),c=colIdx===-2?MYST:colIdx<0?null:COL[colIdx];
  const ph=(seed||0)*1.37;const yy=y+(bob?Math.sin(t*4+ph)*s*0.035:0);const bw=v.bw,bh=v.bh;
  cx.save();cx.lineJoin='round';
- cx.fillStyle='rgba(0,0,0,.16)';cx.beginPath();cx.ellipse(x,y+s*0.47,s*0.3*bw,s*0.075,0,0,7);cx.fill();
+ const RS=riderStyle,fillC=c?c.c:null;let rbow=null;if(!c){rbow=cx.createLinearGradient(x-s*0.3,0,x+s*0.3,0);COL.forEach((k,i)=>rbow.addColorStop(i/7,k.c))}const cc=c?c.c:rbow,cd=c?(c.dd||c.d):'#6a3fc0';
+ if(RS===4){cx.fillStyle=cc;cx.strokeStyle=INK;cx.lineWidth=Math.max(1.2,s*0.045);cx.beginPath();cx.ellipse(x,y+s*0.46,s*0.44,s*0.13,0,0,7);cx.fill();cx.stroke()}
+ else{cx.fillStyle='rgba(0,0,0,.16)';cx.beginPath();cx.ellipse(x,y+s*0.47,s*0.3*bw,s*0.075,0,0,7);cx.fill()}
+ if(RS===2){// bean: one round body all in the color
+  cx.strokeStyle=INK;cx.lineWidth=Math.max(1,s*0.04);cx.fillStyle=cd;for(const sx of[-1,1]){cx.beginPath();cx.ellipse(x+sx*s*0.13,yy+s*0.44,s*0.12,s*0.06,0,0,7);cx.fill();cx.stroke()}
+  if(hatOn==='cape'||hatOn==='pack'){cx.fillStyle=hatOn==='cape'?'#e3343b':'#f5b82e';rr(x-s*0.3,yy-s*0.12,s*0.6,s*0.4,s*0.14);cx.fill();cx.stroke()}
+  cx.fillStyle=cc;cx.lineWidth=Math.max(1.2,s*0.055);cx.beginPath();cx.ellipse(x,yy+s*0.08,s*0.3*bw,s*0.38,0,0,7);cx.fill();cx.stroke();
+  cx.fillStyle='rgba(255,255,255,.35)';cx.beginPath();cx.ellipse(x-s*0.13,yy-s*0.06,s*0.06,s*0.12,-0.3,0,7);cx.fill();
+  if(riderMood==='happy'){cx.strokeStyle=INK;cx.lineWidth=Math.max(1.2,s*0.05);cx.fillStyle=cc;for(const sx of[-1,1]){cx.beginPath();cx.ellipse(x+sx*s*0.3,yy-s*0.12,s*0.06,s*0.12,sx*0.5,0,7);cx.fill();cx.stroke()}}
+  if(c&&save.settings.shapes&&s>15){const k_=save.settings.cb?1.7:1;cx.fillStyle='rgba(255,255,255,.95)';cx.beginPath();cx.arc(x,yy+s*0.14,s*0.085*k_,0,7);cx.fill();drawShape(colIdx===-2?'q':SHAPES[colIdx],x,yy+s*0.14,s*0.06*k_,c.dd||c.d)}
+  const blink=forceBlink||bob&&((t*0.7+ph)%3.2)<0.09;drawHead(x,yy-s*0.32,s*0.2,v,blink);
+  if(hatOn&&hatOn!=='none'&&!isVip(seed))drawHat(hatOn,x,yy-s*0.32,s*0.2,seed||0);
+  cx.restore();return}
  // legs + shoes
  {const pw=s*0.44*v.bw,pc=c?c.c:'#9a6bf0',pd=c?(c.dd||c.d):'#6a3fc0';cx.fillStyle=pc;cx.strokeStyle=INK;cx.lineWidth=Math.max(1.2,s*0.05);rr(x-pw/2,yy+s*0.2,pw,s*0.25,[s*0.03,s*0.03,s*0.08,s*0.08]);cx.fill();cx.stroke();
   cx.strokeStyle=pd;cx.lineWidth=Math.max(1,s*0.035);cx.beginPath();cx.moveTo(x,yy+s*0.3);cx.lineTo(x,yy+s*0.45);cx.stroke();
@@ -1765,8 +1777,12 @@ function drawPersonRaw(x,y,s,colIdx,t,bob,seed,forceBlink){
  if(v.pack){cx.strokeStyle=mixHex(v.hatC,'#000000',0.35);cx.lineWidth=Math.max(1,s*0.04);cx.beginPath();cx.moveTo(x-tw*0.28,ty+s*0.02);cx.lineTo(x-tw*0.28,ty+tht*0.8);cx.moveTo(x+tw*0.28,ty+s*0.02);cx.lineTo(x+tw*0.28,ty+tht*0.8);cx.stroke()}
  if(c&&save.settings.shapes&&s>15){const k_=save.settings.cb?1.7:1;cx.fillStyle='rgba(255,255,255,.95)';cx.beginPath();cx.arc(x,ty+tht*0.55,s*0.085*k_,0,7);cx.fill();drawShape(colIdx===-2?'q':SHAPES[colIdx],x,ty+tht*0.55,s*0.06*k_,c.dd||c.d)}
  if(v.scarf){cx.fillStyle=v.scarfC;rr(x-tw*0.42,ty-s*0.02,tw*0.84,s*0.08,s*0.04);cx.fill();rr(x+tw*0.1,ty,s*0.07,s*0.16,s*0.03);cx.fill()}
+ if(RS===0){cx.strokeStyle=c?c.d:'#6a3fc0';cx.lineWidth=Math.max(1,s*0.035);cx.beginPath();cx.moveTo(x,ty+s*0.05);cx.lineTo(x,ty+tht);cx.stroke()}
+ if(RS===5){cx.strokeStyle=INK;cx.lineWidth=Math.max(1.4,s*0.06);cx.beginPath();cx.moveTo(x+tw/2+s*0.05,ty+s*0.3);cx.lineTo(x+tw/2+s*0.05,ty-s*0.75);cx.stroke();cx.fillStyle=cc;cx.lineWidth=Math.max(1,s*0.04);cx.beginPath();cx.moveTo(x+tw/2+s*0.05,ty-s*0.75);cx.lineTo(x+tw/2+s*0.42,ty-s*0.62);cx.lineTo(x+tw/2+s*0.05,ty-s*0.48);cx.closePath();cx.fill();cx.stroke()}
  const blink=forceBlink||bob&&((t*0.7+ph)%3.2)<0.09;
- drawHead(x,ty-s*0.16,s*0.2,v,blink);
+ if(RS===1){const hy=ty-s*0.16;cx.fillStyle=cc;cx.strokeStyle=INK;cx.lineWidth=Math.max(1.2,s*0.05);cx.beginPath();cx.arc(x,hy,s*0.29,0,7);cx.fill();cx.stroke();drawHead(x,hy+s*0.01,s*0.19,Object.assign({},v,{hair:-1}),blink);cx.strokeStyle=c?c.d:'#6a3fc0';cx.lineWidth=Math.max(1,s*0.04);cx.beginPath();cx.arc(x,hy+s*0.01,s*0.215,0,7);cx.stroke()}
+ else if(RS===3){const hy=ty-s*0.16;drawHead(x,hy,s*0.2,Object.assign({},v,{hair:-1}),blink);cx.fillStyle=cc;cx.strokeStyle=INK;cx.lineWidth=Math.max(1.2,s*0.045);cx.beginPath();cx.ellipse(x,hy-s*0.12,s*0.34,s*0.08,0,0,7);cx.fill();cx.stroke();cx.beginPath();cx.arc(x,hy-s*0.14,s*0.2,Math.PI,0);cx.closePath();cx.fill();cx.stroke();cx.fillStyle=c?c.d:'#6a3fc0';cx.fillRect(x-s*0.2,hy-s*0.2,s*0.4,s*0.05)}
+ else drawHead(x,ty-s*0.16,s*0.2,v,blink);
  if(hatOn&&hatOn!=='none'&&!isVip(seed))drawHat(hatOn,x,ty-s*0.16,s*0.2,seed||0);
  cx.restore();
 }
@@ -1880,6 +1896,7 @@ function frame(){
  requestAnimationFrame(frame);
  {const r=performance.now();if(frame.l&&r-frame.l<13)return;if(frame.l&&!document.hidden){const d=r-frame.l;if(d<250){qSamp.push(d);if(qSamp.length>=120){qSamp.sort((a,b)=>a-b);const med=qSamp[60];qSamp=[];if((lowQ|0)<2&&med>26){lowQ=(lowQ|0)+1;layout()}}}}frame.l=r}
  try{frameInner()}catch(err){console.error(err);try{cx.restore()}catch(e){}}
+ riderStyle=-1;
 }
 // ---------- first-level tutorial ----------
 let tut=null;
@@ -1898,6 +1915,7 @@ function drawTut(t){const p=tutTarget();if(!p)return;const bob=Math.sin(t*5)*cel
  const sz=Math.max(34,cell*0.9);cx.font=sz+'px "Noto Color Emoji", system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='top';cx.shadowColor='rgba(0,0,0,.35)';cx.shadowBlur=6;cx.fillText('\u{1F446}',p[0]+cell*0.1,p[1]+cell*0.25+bob);cx.restore()}
 function frameInner(){
  if(!L||!cw)return;
+ if(L._style==null)L._style=hashStr('rs'+mode.type+(mode.n??'')+(mode.date??'')+(mode.pk??'')+(mode.i??''))%6;riderStyle=L._style;
  const t=now(),dt=Math.min(0.05,t-lastT);lastT=t;
  for(let i=0;i<fx.length;i++)if(fx[i].at<=t){const f=fx[i];fx.splice(i--,1);f.fn()}
  let sox=0,soy=0;if(t<shakeUntil){const k=(shakeUntil-t)/0.3;sox=(Math.random()-0.5)*2*shakeMag*Math.min(1,k);soy=(Math.random()-0.5)*2*shakeMag*Math.min(1,k)}
