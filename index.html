@@ -322,6 +322,29 @@ body.big #lvlName{font-size:26px}body.big #lvlSub{font-size:15px}body.big .card 
 body.calmui *,body.calmui *::before{animation:none!important;transition:none!important}
 .coinchip{display:flex;align-items:center;gap:3px;flex:none;background:#fff4c9;border:2.5px solid var(--ink);border-radius:99px;padding:3px 9px 3px 6px;font-family:var(--display);font-size:16px;box-shadow:0 2px 0 var(--line)}.coinchip b{font-weight:700;color:#6a4a00}.coinchip.pop{animation:cpop .4s}@keyframes cpop{50%{transform:scale(1.18)}}
 .lbonus{background:#fff4c9;border:2px solid #f5b82e;border-radius:12px;padding:8px 10px;font-weight:800;color:#7a5600;margin:4px 0 10px}
+
+/* ---- contrast fixes: text meets WCAG AA (4.5:1, or 3:1 for large text) in every theme ---- */
+:root{--accentFill:#c93c22;--muted:#4f5a6e}
+body.t-snow{--accentFill:#2a6fd6;--muted:#4a5a73}
+body.t-beach{--accentFill:#0f7f84;--muted:#5c574a}
+body.t-sunset{--accentFill:#c2385c;--muted:#6a4f57}
+body.t-night{--accentFill:#ffb347;--muted:#b4bce0}
+.chip[aria-pressed="true"],#sStyle .chip[aria-pressed=true],#sTrack .chip[aria-pressed=true],#trTabs .chip.on,#shTabs .chip.on{background:var(--accentFill)!important;color:#fff!important}
+#trTabs .chip.on small,#shTabs .chip.on small{color:#fff!important;opacity:1}
+#trTabs .chip small,#shTabs .chip small{opacity:1!important;color:var(--muted)}
+body.t-night .chip[aria-pressed="true"],body.t-night #sStyle .chip[aria-pressed=true],body.t-night #sTrack .chip[aria-pressed=true],body.t-night #trTabs .chip.on,body.t-night #shTabs .chip.on,body.t-night #trTabs .chip.on small,body.t-night #shTabs .chip.on small{color:#1c1f33!important}
+.btn.primary{background:linear-gradient(180deg,var(--accent) 0%,var(--accentFill) 50%)}
+body.t-night .btn.primary{color:#1c1f33;text-shadow:none}
+body.t-night .btn:not(.primary):not(.primary2){color:#eef1ff}
+.coinchip{color:#3a2c00}
+.now{color:#4a3500}
+#bHint.poor .hcost,.hcost.poor{color:#555}
+.pwhow{color:#0f3d22}
+.arday span{color:#7a5200}
+body.t-night .arday span{color:#ffd27a}
+.codeNote{opacity:1;color:var(--muted)}
+.goal.locked{opacity:1}.goal.locked .gt small{color:var(--muted)}
+#sReset{color:#b3261e}body.t-night #sReset{color:#ff8a8a}
 </style>
 
 <div id="app">
@@ -1374,6 +1397,9 @@ function drawPreview(t){if(!preview)return;const c=L.cars[preview.id],cs=L.cells
  cx.restore()}
 function drawBlockX(x,y){cx.save();cx.strokeStyle='#ffffff';cx.lineWidth=cell*0.2;cx.lineCap='round';cx.beginPath();cx.arc(x,y,cell*0.36,0,7);cx.stroke();cx.strokeStyle='#e8484b';cx.lineWidth=cell*0.11;cx.stroke();
  cx.beginPath();cx.moveTo(x-cell*0.17,y-cell*0.17);cx.lineTo(x+cell*0.17,y+cell*0.17);cx.moveTo(x+cell*0.17,y-cell*0.17);cx.lineTo(x-cell*0.17,y+cell*0.17);cx.strokeStyle='#ffffff';cx.lineWidth=cell*0.16;cx.stroke();cx.strokeStyle='#e8484b';cx.lineWidth=cell*0.09;cx.stroke();cx.restore()}
+// readable number on a rider color: dark text on light colors, white text with a dark outline on the rest
+function inkOn(c){return c<0||c===2||c===3||c===6||c===7}
+function colText(txt,x,y,c){if(inkOn(c)){cx.fillStyle='#22283a';cx.fillText(txt,x,y)}else{cx.save();cx.lineJoin='round';cx.lineWidth=Math.max(2,parseFloat(cx.font.split('px')[0].split(' ').pop())*0.22);cx.strokeStyle='rgba(20,22,40,.9)';cx.strokeText(txt,x,y);cx.restore();cx.fillStyle='#ffffff';cx.fillText(txt,x,y)}}
 let rdyC={k:null,S:null,set:new Set()};
 // cars that would take riders from the front right now: clear road, a free stop, and a matching rider waiting
 function readyCars(){if(!S||ended)return rdyC.set;const k=S.dep+'|'+S.qi+'|'+S.q.length+'|'+hist.length+'|'+S.bays.map(b=>b?b.car+':'+b.n:'_').join(',');if(rdyC.k===k&&rdyC.S===S)return rdyC.set;
@@ -1661,7 +1687,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611200513';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611201539';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -2092,9 +2118,9 @@ function frameInner(){
  cx.lineCap='round';cx.lineJoin='round';strokePoly([[qFront[0],qFront[1]],[qFront[0],walkY]],ps*0.7,T.bay);strokePoly([[bayX0+bayW*0.3,walkY],[bayX0+(slotCount()-1)*(bayW+bayGap)+bayW*0.7,walkY]],ps*0.6,T.bay);
  const freeN=S.bays.filter(b_=>b_==null).length,lastFree=!ended&&S.bays.length>1&&freeN===1&&S.qi<S.q.length;
  for(let b=0;b<slotCount();b++){const x=bayX0+b*(bayW+bayGap)+shk,y=bayY,lock=b>=S.bays.length;cx.fillStyle=lock?'rgba(30,40,60,.1)':T.bay;rr(x,y,bayW,bayH,cell*0.22);cx.fill();cx.strokeStyle=T.bayLine;cx.lineWidth=2;cx.setLineDash([6,5]);cx.stroke();cx.setLineDash([]);
-  if(lastFree&&!lock&&S.bays[b]==null){const g=0.5+0.5*Math.sin(t*5);cx.fillStyle='rgba(255,210,63,'+(0.22+0.28*g).toFixed(3)+')';rr(x,y,bayW,bayH,cell*0.22);cx.fill();cx.strokeStyle='rgba(230,160,0,'+(0.6+0.4*g).toFixed(3)+')';cx.lineWidth=3;cx.stroke();cx.fillStyle='#8a5a00';cx.font='900 '+Math.max(10,Math.min(bayW*0.16,cell*0.26))+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('LAST STOP',x+bayW/2,y+bayH/2)}
+  if(lastFree&&!lock&&S.bays[b]==null){const g=0.5+0.5*Math.sin(t*5);cx.fillStyle='rgba(255,210,63,'+(0.22+0.28*g).toFixed(3)+')';rr(x,y,bayW,bayH,cell*0.22);cx.fill();cx.strokeStyle='rgba(230,160,0,'+(0.6+0.4*g).toFixed(3)+')';cx.lineWidth=3;cx.stroke();cx.fillStyle='#6e4700';cx.font='900 '+Math.max(10,Math.min(bayW*0.16,cell*0.26))+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('LAST STOP',x+bayW/2,y+bayH/2)}
   if(lock){const r_=Math.min(bayW,bayH)*0.2,px=x+bayW/2,py=y+bayH/2,n=invCount('stop'),pul=n?1+0.06*Math.sin(t*4):1;cx.fillStyle=n?'#45c07f':'#a7aebd';cx.beginPath();cx.arc(px,py,r_*pul,0,7);cx.fill();cx.fillStyle='#ffffff';cx.fillRect(px-r_*0.55,py-r_*0.14,r_*1.1,r_*0.28);cx.fillRect(px-r_*0.14,py-r_*0.55,r_*0.28,r_*1.1);
-   cx.font='800 '+Math.max(11,cell*0.22)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='top';cx.fillStyle=n?'#2e8a57':'rgba(60,66,84,.7)';cx.fillText(n?'\u00d7'+n:'0 left',px,py+r_*1.25);continue}
+   cx.font='800 '+Math.max(11,cell*0.22)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='top';cx.fillStyle=n?'#1f6e43':'#4f5568';cx.fillText(n?'\u00d7'+n:'0 left',px,py+r_*1.25);continue}
   if(b===L.towBay){cx.save();cx.fillStyle='rgba(232,72,75,.2)';rr(x,y,bayW,bayH,cell*0.22);cx.fill();cx.strokeStyle='#e8484b';cx.lineWidth=3;cx.stroke();cx.font='900 '+Math.max(10,cell*0.2)+'px Nunito, system-ui, sans-serif';cx.textAlign='right';cx.textBaseline='top';cx.fillStyle='#c8202a';cx.fillText('TOW',x+bayW-5,y+4);
    if(S.bays[b]&&S.tzc>0){const rx=x+bayW-cell*0.25,ry=y+bayH-cell*0.25,rr_=Math.max(9,cell*0.2);cx.fillStyle='#e8484b';cx.beginPath();cx.arc(rx,ry,rr_,0,7);cx.fill();cx.fillStyle='#fff';cx.textAlign='center';cx.textBaseline='middle';cx.font='900 '+(rr_*1.2)+'px Nunito, system-ui, sans-serif';cx.fillText(String(S.tzc),rx,ry+1)}cx.restore()}
   if(save.equip.decor!=='none')drawDecor(save.equip.decor,x,y,bayW,bayH,t,b);
@@ -2173,14 +2199,14 @@ function frameInner(){
   drawCar(c,[[x-lenB/2,y],[x+lenB/2,y]],{th:thB,col,dir:[1,0],state:false,noShape:true,noArrow:true,noCap:true,glow:glowF});
   const filled=v.boards.filter(b=>b<=t).length;
   seatsDraw(x,y,lenB,thB,c.cap,v,col,t,glowF);cx.restore();
-  if(!leaving){const left=c.cap-filled,ph=Math.max(14,bayH*0.24),txt=String(left);cx.font='800 '+(ph*0.72)+'px Nunito, system-ui, sans-serif';const pw=Math.max(ph*1.3,cx.measureText(txt).width+ph*0.7),py=bayY+bayH-ph*0.55;cx.fillStyle=col.c;rr(bx-pw/2,py-ph/2,pw,ph,ph/2);cx.fill();cx.lineWidth=2;cx.strokeStyle='#ffffff';cx.stroke();cx.fillStyle='#ffffff';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(txt,bx,py+1)}
+  if(!leaving){const left=c.cap-filled,ph=Math.max(14,bayH*0.24),txt=String(left);cx.font='800 '+(ph*0.72)+'px Nunito, system-ui, sans-serif';const pw=Math.max(ph*1.3,cx.measureText(txt).width+ph*0.7),py=bayY+bayH-ph*0.55;cx.fillStyle=col.c;rr(bx-pw/2,py-ph/2,pw,ph,ph/2);cx.fill();cx.lineWidth=2;cx.strokeStyle='#ffffff';cx.stroke();cx.textAlign='center';cx.textBaseline='middle';colText(txt,bx,py+1,ccol(c))}
  }
  // queue
  let started=qBase;for(const p of pList)if(p.st<=t)started++;
  if(!L.mystery&&S.q.length-started>0){const cnt={};let tot=0;for(let q=started;q<S.q.length;q++){const c_=S.q[q];cnt[c_]=(cnt[c_]||0)+1;tot++}
   const bx0=Math.max(10,bayX0-cell*0.1),bx1=cw-bx0,bh=Math.max(8,ps*0.32),by0=topY+Math.max(2,ps*0.06);let xx=bx0;const keys=Object.keys(cnt).map(Number).sort((a,b)=>a-b);
   cx.save();rr(bx0,by0,bx1-bx0,bh,bh/2);cx.clip();cx.fillStyle='rgba(30,40,60,.15)';cx.fillRect(bx0,by0,bx1-bx0,bh);
-  for(const c_ of keys){const w_=(bx1-bx0)*cnt[c_]/tot;cx.fillStyle=c_<0?'#ffffff':COL[c_].c;cx.fillRect(xx,by0,w_+0.5,bh);cx.fillStyle=(c_<0||c_===2||c_===6)?'#22283a':'#ffffff';cx.font='900 '+Math.max(8,bh*0.82)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='middle';const lbl=String(cnt[c_]);if(cx.measureText(lbl).width<w_-3)cx.fillText(lbl,xx+w_/2,by0+bh/2+0.5);xx+=w_}
+  for(const c_ of keys){const w_=(bx1-bx0)*cnt[c_]/tot;cx.fillStyle=c_<0?'#ffffff':COL[c_].c;cx.fillRect(xx,by0,w_+0.5,bh);cx.font='900 '+Math.max(8,bh*0.82)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='middle';const lbl=String(cnt[c_]);if(cx.measureText(lbl).width<w_-3)colText(lbl,xx+w_/2,by0+bh/2+0.5,c_);xx+=w_}
   cx.restore();cx.strokeStyle='rgba(43,36,64,.35)';cx.lineWidth=1.5;rr(bx0,by0,bx1-bx0,bh,bh/2);cx.stroke()}
  qOff+=(started-qOff)*Math.min(1,dt*10);
  if(ringC){drawRingQueue(t,dt,started,T);}else{
@@ -2879,7 +2905,7 @@ function drawRingQueue(t,dt,started,T){const W=Math.min(L.ring,S.q.length-starte
   for(const c in bub)if(!grp[c])delete bub[c];
   for(const c in grp){const ids=grp[c],mid=ids[(ids.length-1)>>1],sl=ringSlots[tgt[mid]];if(!sl)continue;let a=sl.a+rot,B=bub[c];if(B==null)B=bub[c]=a;else{let d=((a-B)%6.2832+9.4248)%6.2832-3.1416;B+=d*Math.min(1,dt*2.2);bub[c]=B}
    const ci=+c,bx=cx0+Math.cos(B)*rb,by=cy0+Math.sin(B)*rb*(R?ringR/R:1);cx.fillStyle=ci<0?'#ffffff':COL[ci].c;cx.strokeStyle='#ffffff';cx.lineWidth=2;cx.beginPath();cx.arc(bx,by,bs,0,7);cx.fill();cx.stroke();cx.strokeStyle='rgba(43,36,64,.5)';cx.lineWidth=1;cx.beginPath();cx.arc(bx,by,bs+1.5,0,7);cx.stroke();
-   cx.fillStyle=(ci<0||ci===2||ci===6)?'#22283a':'#ffffff';cx.font='900 '+(bs*1.15)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(String(ids.length),bx,by+0.5)}}
+   cx.font='900 '+(bs*1.15)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='middle';colText(String(ids.length),bx,by+0.5,ci)}}
  for(let sd=0;sd<2;sd++){if(!over[sd])continue;const lbl='+'+over[sd];cx.font='800 '+Math.max(12,ps*0.5)+'px Nunito, system-ui, sans-serif';const w=cx.measureText(lbl).width+14;const E=ringPaths[sd].P[ringPaths[sd].P.length-1],hx=Math.min(cw-6-w/2,Math.max(6+w/2,E[0])),hy=E[1]-ps*0.95;cx.fillStyle='#22283a';rr(hx-w/2,hy-ps*0.34,w,ps*0.68,ps*0.34);cx.fill();cx.fillStyle='#ffffff';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(lbl,hx,hy+1)}
  if(Object.keys(dispPos).length>S.q.length+40){const keep=new Set(S.qid.slice(started));for(const k in dispPos)if(!keep.has(+k))delete dispPos[k]}}
 // ---------- sceneries: 20 looks with animals, weather, landmarks, seasons and map extras ----------
