@@ -84,6 +84,9 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .shcol{grid-column:1/-1;font-weight:800;color:var(--muted);font-size:13px;text-align:center}
 #shTabs .chip small{opacity:.7;font-weight:700}
 .shitem img{width:84px;height:84px}.shitem b{font-size:14px;font-weight:800}.shitem.eq{outline:3px solid #45c07f}
+.verBtn{width:auto;flex:none;margin:0}
+.giftIn{flex:1;min-width:0;margin:0;font-size:14px}
+.codeNote{font-size:13px;line-height:1.35;margin:2px 2px 8px;opacity:.8;text-align:left}.codeBox{width:100%;box-sizing:border-box;font:12px/1.3 ui-monospace,monospace;border-radius:12px;border:2px solid rgba(43,36,64,.25);padding:8px;margin:6px 0;word-break:break-all;resize:vertical;background:#fff;color:#2b2440}
 .btn.small{padding:8px 10px;font-size:14px;min-height:0;width:100%}
 .coinb{display:inline-block;margin-left:4px;padding:2px 10px;border-radius:99px;background:#f5b82e;color:#3a2a00;font-weight:900}
 .pkcard{position:relative;overflow:hidden;width:100%;border:0;border-radius:16px;background:var(--chip);color:var(--panelInk);padding:14px;margin-bottom:10px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-family:var(--body);box-shadow:0 3px 0 var(--line);text-align:left}
@@ -465,6 +468,15 @@ body.calmui *,body.calmui *::before{animation:none!important;transition:none!imp
  <div class="set">Reduce motion<button class="sw" id="sCalm" role="switch" aria-checked="false" aria-label="Reduce motion"></button></div>
  <div class="lbl">Themes</div>
  <div class="themes" id="thList"></div>
+ <div class="lbl">Gift code</div>
+ <div class="row"><input id="sGift" class="codeBox giftIn" placeholder="Paste a GIFT- code" spellcheck="false" autocomplete="off" autocapitalize="characters"><button class="btn" id="sRedeem">Redeem</button></div>
+ <div class="lbl">Move to a new device</div>
+ <p class="codeNote">Your backup code holds your levels, stars, coins, boosts and shop items. Copy it here, then paste it in Settings on the other device or app.</p>
+ <div class="row"><button class="btn" id="sCopyCode">Copy my code</button><button class="btn" id="sPasteCode">Paste a code</button></div>
+ <textarea id="sCode" class="codeBox" rows="3" spellcheck="false" autocomplete="off" autocapitalize="off" hidden></textarea>
+ <button class="btn primary" id="sApplyCode" hidden>Restore from this code</button>
+ <div class="lbl">Updates</div>
+ <div class="set"><span id="sVer">Version</span><button class="btn small verBtn" id="sUpd">Check for updates</button></div>
  <button class="btn" id="sReset">Reset progress</button>
  <button class="btn primary" id="sBack">Done</button>
 </div></div>
@@ -1552,7 +1564,7 @@ $('lvZoom').onclick=()=>{sfx('ui');mapWorld=!mapWorld;showLevels()};
 function showSettings(){
  const s=save.settings;$('sMusic').setAttribute('aria-checked',s.music);$('sSfx').setAttribute('aria-checked',s.sfx);$('sVib').setAttribute('aria-checked',s.vib);$('sCB').setAttribute('aria-checked',!!s.cb);$('sShapes').setAttribute('aria-checked',s.shapes);
  $('thList').innerHTML='<button class="th" data-k="auto" aria-pressed="'+(s.theme==='auto')+'"><i style="background:linear-gradient(90deg,#a7d49c 0 20%,#eef5fc 20% 40%,#1d2650 40% 60%,#f2dca9 60% 80%,#f4b99a 80%)"></i>Auto<small>Matches each district</small></button>'+Object.entries(THEMES).map(([k,v])=>{const lock=save.unlocked<v.unlock;return'<button class="th" data-k="'+k+'" aria-pressed="'+(s.theme===k)+'"'+(lock?' disabled':'')+'><i style="background:linear-gradient(90deg,'+v.grass+' 0 30%,'+v.lot+' 30% 70%,'+v.walk+' 70%)"></i>'+v.name+'<small>'+(lock?'Clear level '+(v.unlock-1):'Unlocked')+'</small></button>'}).join('');
- $('sReset').textContent='Reset progress';$('sReset').dataset.arm='';musicChips();$('sFast').setAttribute('aria-checked',!!s.fast);$('sBig').setAttribute('aria-checked',!!s.big);$('sCalm').setAttribute('aria-checked',!!s.calm);
+ $('sReset').textContent='Reset progress';$('sReset').dataset.arm='';$('sCode').hidden=true;$('sApplyCode').hidden=true;musicChips();$('sFast').setAttribute('aria-checked',!!s.fast);$('sBig').setAttribute('aria-checked',!!s.big);$('sCalm').setAttribute('aria-checked',!!s.calm);
  showOv('ovSettings');
 }
 $('thList').addEventListener('click',e=>{const b=e.target.closest('.th');if(!b||b.disabled)return;save.settings.theme=b.dataset.k;persist();applyTheme();showSettings();sfx('ui')});
@@ -1574,6 +1586,54 @@ $('sMusic').addEventListener('click',()=>{ensureAudio();setMusic(!save.settings.
 $('bMusic').addEventListener('click',()=>{ensureAudio();setMusic(!save.settings.music)});
 $('sReset').addEventListener('click',()=>{const b=$('sReset');if(b.dataset.arm!=='1'){b.dataset.arm='1';b.textContent='Tap again to erase all progress';return}
  save.unlocked=1;save.cur=1;save.stars={};save.daily={};save.streak=0;save.lastDaily=null;save.seen={};save.settings.theme='city';persist();applyTheme();startLevel(1)});
+// ---------- backup code: move progress to another device ----------
+const b64u={enc:u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')},
+ dec:t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}};
+async function zip_(u8,inflate){const CS=inflate?window.DecompressionStream:window.CompressionStream;if(!CS)return null;const st=new Blob([u8]).stream().pipeThrough(new CS('deflate-raw'));return new Uint8Array(await new Response(st).arrayBuffer())}
+async function makeCode(){try{saveResume()}catch(e){}const data=JSON.parse(JSON.stringify(save));let sb=null;try{sb=JSON.parse(localStorage.getItem('parkle.sb')||'null')}catch(e){}if(sb)data._sb=sb;data._v=1;
+ const raw=new TextEncoder().encode(JSON.stringify(data));let z=null;try{z=await zip_(raw,false)}catch(e){}const body=(z?'z':'j')+b64u.enc(z||raw),sum=(hashStr(body)>>>0).toString(36).slice(-5).padStart(5,'0');return'PARKLE-'+body+'-'+sum}
+async function readCode(txt){txt=(txt||'').replace(/\s+/g,'');const m=/^PARKLE-([zj][A-Za-z0-9_-]+)-([0-9a-z]{5})$/.exec(txt);if(!m)throw new Error('shape');
+ if((hashStr(m[1])>>>0).toString(36).slice(-5).padStart(5,'0')!==m[2])throw new Error('sum');let u=b64u.dec(m[1].slice(1));if(m[1][0]==='z'){u=await zip_(u,true);if(!u)throw new Error('nozip')}
+ const d=JSON.parse(new TextDecoder().decode(u));if(!d||typeof d.unlocked!=='number'||typeof d.stars!=='object')throw new Error('data');return d}
+$('sCopyCode').onclick=async()=>{sfx('ui');const box=$('sCode');let c;try{c=await makeCode()}catch(e){toast('Could not make a code on this device.');return}box.hidden=false;box.value=c;box.readOnly=true;$('sApplyCode').hidden=true;
+ let ok=false;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(c);ok=true}}catch(e){}
+ if(!ok){try{box.focus();box.select();ok=document.execCommand&&document.execCommand('copy')}catch(e){}}
+ toast(ok?'Backup code copied. Keep it somewhere safe, like a note or an email to yourself.':'Copy the code in the box below and keep it somewhere safe.')};
+$('sPasteCode').onclick=async()=>{sfx('ui');const box=$('sCode'),ap=$('sApplyCode');box.hidden=false;box.readOnly=false;box.value='';ap.hidden=false;ap.dataset.arm='';ap.textContent='Restore from this code';
+ try{if(navigator.clipboard&&navigator.clipboard.readText){const t=await navigator.clipboard.readText();if(t&&/PARKLE-/.test(t))box.value=t.trim()}}catch(e){}
+ if(!box.value){box.placeholder='Paste your PARKLE- code here';box.focus()}};
+$('sCode').addEventListener('input',()=>{const ap=$('sApplyCode');ap.dataset.arm='';ap.textContent='Restore from this code'});
+$('sApplyCode').onclick=async()=>{const ap=$('sApplyCode');let d;try{d=await readCode($('sCode').value)}catch(e){toast(e.message==='sum'?'That code is missing a piece. Copy the whole code and try again.':'That is not a Parkle backup code.');sfx('bump');return}
+ if(ap.dataset.arm!=='1'){ap.dataset.arm='1';ap.textContent='Tap again: replace this device with Level '+d.unlocked+', '+(d.coins||0)+' coins';return}
+ const sb=d._sb;delete d._sb;delete d._v;try{if(sb)localStorage.setItem('parkle.sb',JSON.stringify(sb))}catch(e){}
+ for(const k of Object.keys(save))delete save[k];Object.assign(save,{unlocked:1,cur:1,stars:{},daily:{},lastDaily:null,streak:0,settings:{music:true,sfx:true,vib:true,shapes:true,theme:'auto'},seen:{}},d);fixSave();
+ persist();toast('Progress restored. Welcome back!');setTimeout(()=>{try{location.reload()}catch(e){}},900)};
+// ---------- gift codes: GIFT-<payload>-<check>, each one works once per profile ----------
+async function redeemGift(txt){txt=(txt||'').replace(/\s+/g,'');const m=/^GIFT-([A-Za-z0-9_-]+)-([0-9a-z]{5})$/i.exec(txt);if(!m)return'That is not a gift code.';
+ if((hashStr('pk-gift|'+m[1])>>>0).toString(36).slice(-5).padStart(5,'0')!==m[2].toLowerCase())return'That gift code is not valid. Check it was copied in full.';
+ let g;try{g=JSON.parse(new TextDecoder().decode(b64u.dec(m[1])))}catch(e){return'That gift code is not valid.'}
+ if(!g||!g.id)return'That gift code is not valid.';save.redeemed=save.redeemed||{};if(save.redeemed[g.id])return'You already used this gift code.';
+ const got=[];const c=Math.max(0,Math.min(100000,g.c|0));if(c){save.coins=(save.coins||0)+c;got.push(c+' coins')}
+ save.inv=save.inv||{};for(const k in (g.i||{})){const pw=PWR.find(x=>x.k===k),n=Math.max(0,Math.min(99,g.i[k]|0));if(!pw||!n)continue;save.inv[k]=(save.inv[k]||0)+n;got.push(n+' '+pw.n+(n>1?'s':''))}
+ if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
+$('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
+// ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
+const PARKLE_VER='202611200011';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
+async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
+async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
+ try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}
+ try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})))}}catch(e){}
+ try{await fetch('./?t='+Date.now(),{cache:'reload'})}catch(e){}location.reload()}
+async function checkUpdate(manual){if(!canUpd){if(manual)toast('This copy updates by itself when a new version is published.');return}
+ let v;try{v=await remoteVer()}catch(e){if(manual)toast('Could not check for updates. Are you online?');return}
+ if(v&&v>PARKLE_VER){let tried=null;try{tried=sessionStorage.getItem('parkle.upd')}catch(e){}
+  if(tried===v&&!manual){toast('A new version is downloading. Close and reopen the game in a few minutes.');return}
+  toast('Updating to the newest version...');setTimeout(()=>applyUpdate(v),manual?300:900)}
+ else if(manual)toast('You have the newest version.')}
+$('sVer').textContent='Version '+verLabel(PARKLE_VER);
+$('sUpd').onclick=()=>{sfx('ui');checkUpdate(true)};
+if(canUpd)setTimeout(()=>checkUpdate(false),2500);
 $('sBack').onclick=()=>{sfx('ui');if(setFromPause&&L&&!ended){setFromPause=false;showPause()}else hideAll()};
 $('bMenu').onclick=()=>{ensureAudio();sfx('ui');if(L&&!ended)showPause();else showMenu()};
 let setFromPause=false;
