@@ -1,0 +1,21 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.jtcoder.parkle'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.jtcoder.parkle'
+        minSdk 24
+        targetSdk 34
+        versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger())
+        versionName '1.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+    signingConfigs {
+        // a fixed key so a newer APK installs over the old one without losing progress
+        parkle { storeFile file('parkle.keystore'); storePassword 'parkle-app'; keyAlias 'parkle'; keyPassword 'parkle-app' }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.parkle }
+        debug { signingConfig signingConfigs.parkle }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
