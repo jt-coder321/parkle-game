@@ -87,6 +87,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .setCard{gap:10px;height:min(700px,100%);overflow:hidden}
 .setCard>h2,.setCard>.stabs,.setCard>#sBack{flex:none}
 .sgroup .codeNote{text-align:left!important;margin:0 0 4px}
+.flhead{font-weight:800;font-size:13px;margin-top:4px;color:var(--muted)}.flrow{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--line)}.flrow span{text-align:right;color:var(--muted)}
 .stabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--chip);border-radius:16px;padding:4px;border:3px solid var(--ink)}
 .stab{border:0;background:transparent;border-radius:12px;padding:9px 4px;font:700 15px var(--display);color:var(--panelInk);white-space:nowrap}
 .stab.on{background:var(--panel);box-shadow:0 2px 0 var(--ink)}
@@ -551,6 +552,11 @@ body.t-night .arday span{color:#ffd27a}
   <div class="sgroup">
    <div class="stitle">Gift code</div>
    <div class="row srow"><input id="sGift" class="codeBox giftIn" placeholder="Paste a GIFT- code" spellcheck="false" autocomplete="off" autocapitalize="characters"><button class="btn" id="sRedeem">Redeem</button></div>
+  </div>
+  <div class="sgroup">
+   <div class="stitle">My fail log</div>
+   <div id="sFails"></div>
+   <button class="btn sbtn" id="sCopyFails">Copy fail log</button>
   </div>
   <div class="sgroup">
    <div class="set"><span><span class="stitle">Updates</span><small id="sVer" class="sver">Version</small></span><button class="btn verBtn" id="sUpd">Check</button></div>
@@ -1301,7 +1307,7 @@ function startPack(pk,i){mode={type:'pack',pk,i};L=genPack(pk,i);beginPlay()}
 function startDaily(k){k=k||todayKey();mode={type:'daily',date:k};L=genLevel(0,k);beginPlay()}
 function beginPlay(){
  applyTheme();rushOn=L.feats.includes('rush');rushLeft=Math.round(L.cars.length*6+20);timeUp=false;
- S=initState(L);hist=[];redo=[];undos=0;hints=0;shield=0;pwUsedLevel=0;target=null;ended=false;endToken++;resetView();reveal(L,S);makeDecor();layout();updateHUD();hideAll();introT0=now()+0.15;stamp=null;setTimeout(()=>sfx('drop'),250);
+ S=initState(L);hist=[];redo=[];undos=0;hints=0;shield=0;pwUsedLevel=0;pwCapped=0;target=null;ended=false;endToken++;resetView();reveal(L,S);makeDecor();layout();updateHUD();hideAll();introT0=now()+0.15;stamp=null;setTimeout(()=>sfx('drop'),250);
  const intro=mode.type==='level'&&L.p&&L.p.intro?FEATURES.find(f=>f.k===L.p.intro):null;
  if(intro&&!save.seen[intro.k])showIntro(intro.title,intro.text,intro.k,'New');
  else if(mode.type==='pack'&&!save.seen.packs)showIntro('Puzzle packs','Every puzzle here has exactly one winning order. You get 2 stops and no power-ups, so plan each move. Hold a car to preview its path.','packs','New');
@@ -1508,7 +1514,7 @@ $('glList').addEventListener('click',e=>{const b=e.target.closest('button[data-i
  if(b.dataset.i==='b'){G.bonus=true;save.coins+=80;persist();updateGoalBadge();openChest('Daily bonus!',[{coins:80}],()=>{updateHUD();showGoals()});return}else{G.list[+b.dataset.i].claimed=true;save.coins+=25}persist();sfx('combo',3);toast('Goal done! +25 coins');updateGoalBadge();updateHUD();showGoals()});
 $('glBack').onclick=()=>{sfx('ui');showMenu()};
 $('mGoals').onclick=()=>{sfx('ui');showGoals()};
-const HINT_COST=5;let lastCoins=0,redo=[],pwUsedLevel=0,rushOn=false,rushLeft=0,timeUp=false,rushShown=-1;
+const HINT_COST=5;let lastCoins=0,redo=[],pwUsedLevel=0,pwCapped=0,rushOn=false,rushLeft=0,timeUp=false,rushShown=-1;
 // day streak: days in a row on which you cleared at least one level of any kind
 function streakDay(off){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+(off||0));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function streakNow(){if(save.lastPlay===undefined&&save.lastDaily)save.lastPlay=save.lastDaily;const lp=save.lastPlay;if(lp!==streakDay(0)&&lp!==streakDay(-1))return 0;return save.streak||0}
@@ -1517,7 +1523,7 @@ function bumpStreak(){const today=streakDay(0);if(save.lastPlay===undefined&&sav
 const STAR_COINS=[0,10,18,28];
 function winCoins(stars,prev,lv){const prog=Math.floor((lv||1)/25)*2,pay=x=>x?STAR_COINS[x]+prog:0;const c=pay(stars)-pay(prev);return prev?(c>0?c:2):c}
 function recordWin(){bumpStreak();
- const assists=undos,stars=assists===0?3:assists<=3?2:1;lastStars=stars;
+ const assists=undos,stars=Math.min(assists===0?3:assists<=3?2:1,pwCapped?2:3);lastStars=stars;
  const prev=mode.type==='level'?(save.stars[mode.n]||0):mode.type==='pack'?(((save.packs[mode.pk]||[])[mode.i])||0):mode.type==='daily'?(save.daily[mode.date]||0):0,first=!prev;
  if(mode.type==='level'){const n=mode.n;save.stars[n]=Math.max(save.stars[n]||0,stars);if(save.unlocked<=n)save.unlocked=n+1;save.cur=Math.max(save.cur,n+1)}if(mode.type==='level'&&typeof submitLeader==='function')submitLeader(true);if(mode.type==='level')cardWin(mode.n);
  else if(mode.type==='pack'){const a=save.packs[mode.pk]=save.packs[mode.pk]||[];a[mode.i]=Math.max(a[mode.i]||0,stars);stat('packs')}
@@ -1580,7 +1586,7 @@ function showWin(){
  $('wTitle').textContent=L.boss&&mode.type==='level'?'Boss lot cleared!':'Lot cleared!';
  $('wStars').innerHTML=[0,1,2].map(i=>starSvg(i<stars,i)).join('');
  const bits=[label,L.cars.length+' cars',L.queue.length+' riders'];
- if(stars<3)bits.push(undos+' undo'+(undos===1?'':'s'));
+ if(stars<3&&undos)bits.push(undos+' undo'+(undos===1?'':'s'));if(pwCapped&&mode.type!=='endless')bits.push('boost used, 2 stars max');
  if(mode.type==='daily')bits.push('Streak '+streakNow());
  if(lastCoins)bits.push('+'+lastCoins+' coins');
  $('wText').textContent=bits.join(' · ');
@@ -1591,6 +1597,16 @@ function showWin(){
  const th=Object.entries(THEMES).find(([k,v])=>mode.type==='level'&&v.unlock===mode.n+1);
  if(th)setTimeout(()=>toast(th[1].name+' theme unlocked! Pick it in Settings.'),900);
 }
+// private fail log: stays on this device and in the backup code, never sent anywhere
+function failName(){return mode.type==='level'?'Level '+mode.n:mode.type==='daily'?'Daily '+mode.date:mode.type==='pack'?levelLabel():'Endless'}
+function logFail(why){if(logFail.tok===endToken)return;logFail.tok=endToken;const k=failName();const F=save.fails=save.fails||{n:{},list:[]};F.n[k]=(F.n[k]||0)+1;
+ F.list.unshift({k,w:why,t:Date.now(),left:Math.max(0,(S.q?S.q.length:0)-(S.qi||0)),u:undos,b:pwUsedLevel});if(F.list.length>40)F.list.length=40;persist()}
+function failLogHTML(){const F=save.fails;if(!F||!F.list.length)return'<p class="codeNote">No fails yet. When you lose a level it shows up here.</p>';
+ const tot=Object.values(F.n).reduce((a,b)=>a+b,0),top=Object.entries(F.n).sort((a,b)=>b[1]-a[1]).slice(0,5);
+ const ago=t=>{const m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
+ return'<p class="codeNote">'+tot+' fail'+(tot===1?'':'s')+' so far. Only you can see this.</p><div class="flhead">Toughest</div>'+top.map(([k,c])=>'<div class="flrow"><b>'+k+'</b><span>'+c+' fail'+(c===1?'':'s')+(save.stars&&/^Level \d+$/.test(k)&&save.stars[+k.slice(6)]?' \u00b7 beaten':'')+'</span></div>').join('')
+ +'<div class="flhead">Recent</div>'+F.list.slice(0,8).map(e=>'<div class="flrow"><b>'+e.k+'</b><span>'+e.w+' \u00b7 '+e.left+' left \u00b7 '+ago(e.t)+'</span></div>').join('')}
+function failLogText(){const F=save.fails;if(!F||!F.list.length)return'Parkle fail log: no fails yet.';return'Parkle fail log\nToughest: '+Object.entries(F.n).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,c])=>k+' x'+c).join(', ')+'\nRecent:\n'+F.list.slice(0,20).map(e=>e.k+' | '+e.w+' | '+e.left+' riders left | '+e.u+' undos | '+e.b+' boosts | '+new Date(e.t).toLocaleString()).join('\n')}
 function showLose(){
  const occ=occOf(L,S);const any=L.cars.some(c=>!S.gone[c.id]&&why(L,S,occ,c).k==='ok');
  const mo=meterOut(L,S),dm=mo?null:doomed(L,S);$('lTitle').textContent=timeUp?'Time\u2019s up':mo?'Meter ran out':dm?'No seats left':'Stops jammed';
@@ -1598,7 +1614,7 @@ function showLose(){
  $('lText').textContent=timeUp?'The clock ran out with '+(S.q.length-S.qi)+' riders still waiting.':mo?'A car with a parking meter was still parked when its time ran out. Undo and get it out sooner.':dm?(dm.extra+' '+COL[dm.col].n+' rider'+(dm.extra>1?'s have':' has')+' no seat left in any '+COL[dm.col].n+' car.'+(L.feats.includes('rainbow')?' A rainbow rider took one of those seats.':'')+' Undo and try another order.'):!S.bays.includes(null)?'All stops are full and nobody at the front of the line fits. Undo and free a different car.':'No car can move right now and the line is stuck. Undo and try another order.';
  if(mode.type==='endless'){const b=save.best[mode.key];$('lText').textContent+=' Run so far: '+mode.cars+' cars, wave '+mode.wave+'.'+(b?' Best: '+b.cars+' cars.':'')}
  $('lRetry').textContent=mode.type==='endless'?'End run':'Retry';$('lBoost').hidden=!invTotal();
- {const fb=$('lBonus');fb.hidden=true;if(mode.type==='level'&&showLose.tok!==endToken){showLose.tok=endToken;const f=save.failRun=(save.failRun&&save.failRun.n===mode.n)?save.failRun:{n:mode.n,c:0};f.c++;if(f.c%3===0){save.coins=(save.coins||0)+10;persist();updateHUD();if(typeof updateHintBtn==='function')updateHintBtn();showLose.bonus=endToken}else persist()}
+ logFail($('lTitle').textContent);{const fb=$('lBonus');fb.hidden=true;if(mode.type==='level'&&showLose.tok!==endToken){showLose.tok=endToken;const f=save.failRun=(save.failRun&&save.failRun.n===mode.n)?save.failRun:{n:mode.n,c:0};f.c++;if(f.c%3===0){save.coins=(save.coins||0)+10;persist();updateHUD();if(typeof updateHintBtn==='function')updateHintBtn();showLose.bonus=endToken}else persist()}
   if(showLose.bonus===endToken){fb.textContent='Nice try! Here are 10 bonus coins \u{1FA99} to help you out.';fb.hidden=false}}
  showOv('ovLose');sfx('lose');buzz(60);shake(5,0.3);flashT=now();flashCol='232,72,75';
 }
@@ -1657,7 +1673,7 @@ $('lvGrid').addEventListener('click',e=>{
  const b=e.target.closest('.node');if(!b||b.disabled)return;sfx('ui');startLevel(+b.dataset.n)});
 $('lvZoom').onclick=()=>{sfx('ui');mapWorld=!mapWorld;showLevels()};
 function showSettings(){
- const s=save.settings;$('sMusic').setAttribute('aria-checked',s.music);$('sSfx').setAttribute('aria-checked',s.sfx);$('sVib').setAttribute('aria-checked',s.vib);$('sCB').setAttribute('aria-checked',!!s.cb);$('sShapes').setAttribute('aria-checked',s.shapes);
+ if($('sFails'))$('sFails').innerHTML=failLogHTML();const s=save.settings;$('sMusic').setAttribute('aria-checked',s.music);$('sSfx').setAttribute('aria-checked',s.sfx);$('sVib').setAttribute('aria-checked',s.vib);$('sCB').setAttribute('aria-checked',!!s.cb);$('sShapes').setAttribute('aria-checked',s.shapes);
  $('thList').innerHTML='<button class="th" data-k="auto" aria-pressed="'+(s.theme==='auto')+'"><i style="background:linear-gradient(90deg,#a7d49c 0 20%,#eef5fc 20% 40%,#1d2650 40% 60%,#f2dca9 60% 80%,#f4b99a 80%)"></i>Auto<small>Matches each district</small></button>'+Object.entries(THEMES).map(([k,v])=>{const lock=save.unlocked<v.unlock;return'<button class="th" data-k="'+k+'" aria-pressed="'+(s.theme===k)+'"'+(lock?' disabled':'')+'><i style="background:linear-gradient(90deg,'+v.grass+' 0 30%,'+v.lot+' 30% 70%,'+v.walk+' 70%)"></i>'+v.name+'<small>'+(lock?'Clear level '+(v.unlock-1):'Unlocked')+'</small></button>'}).join('');
  $('sReset').textContent='Reset progress';$('sReset').dataset.arm='';$('sCode').hidden=true;$('sApplyCode').hidden=true;musicChips();$('sFast').setAttribute('aria-checked',!!s.fast);$('sBig').setAttribute('aria-checked',!!s.big);syncCalmUI();
  setTab(save.seen.setTab||'sound');showOv('ovSettings');
@@ -1698,6 +1714,7 @@ async function makeCode(){try{saveResume()}catch(e){}const data=JSON.parse(JSON.
 async function readCode(txt){txt=cleanCode(txt);const m=/PARKLE-([zj][A-Za-z0-9_-]+)-([0-9a-z]{5})$/.exec(txt);if(!m)throw new Error('shape');
  if((hashStr(m[1])>>>0).toString(36).slice(-5).padStart(5,'0')!==m[2])throw new Error('sum');let u=b64u.dec(m[1].slice(1));if(m[1][0]==='z'){u=await zip_(u,true);if(!u)throw new Error('nozip')}
  const d=JSON.parse(new TextDecoder().decode(u));if(!d||typeof d.unlocked!=='number'||typeof d.stars!=='object')throw new Error('data');return d}
+$('sCopyFails').onclick=async()=>{sfx('ui');const t=failLogText();try{await navigator.clipboard.writeText(t);toast('Fail log copied. Paste it to Claude to tune hard levels.')}catch(e){const box=$('sCode');box.hidden=false;box.value=t;box.select();toast('Select and copy the text in the box.')}};
 $('sCopyCode').onclick=async()=>{sfx('ui');const box=$('sCode');let c;try{c=await makeCode()}catch(e){toast('Could not make a code on this device.');return}box.hidden=false;box.value=c;box.readOnly=true;$('sApplyCode').hidden=true;
  let ok=false;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(c);ok=true}}catch(e){}
  if(!ok){try{box.focus();box.select();ok=document.execCommand&&document.execCommand('copy')}catch(e){}}
@@ -1722,7 +1739,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611210628';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611211423';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -2523,7 +2540,7 @@ function showBoosts(){
  if(idle.length)h+='<div class="pwh">You have these, but not useful right now</div>'+idle.map(([P,w])=>pwCard(P,invCount(P.k),w,'idle')).join('');
  if(none.length)h+='<div class="pwh">Buy with coins (you have '+save.coins+')</div>'+none.map(P=>(P.min||0)>lv?pwCard(P,0,'Unlocks at level '+P.min,'none'):pwCard(P,0,'','buy')).join('');
  $('pwGrid').innerHTML=h;
- $('pwSub').textContent=ready.length?'Tap one to use it.':invTotal()?'None of yours help on this move. Keep them for later.':'You have none yet. Buy them with coins below or in the Shop.';
+ $('pwSub').textContent=ready.length?'Tap one to use it. Any boost except Free Hint caps this level at 2 stars.':invTotal()?'None of yours help on this move. Keep them for later.':'You have none yet. Buy them with coins below or in the Shop.';
  $('pwGrid').scrollTop=0;
  showOv('ovBoost');
 }
@@ -2535,7 +2552,7 @@ function removeRiders(col,n){for(let pass=0;pass<2&&n>0;pass++)for(let j=S.q.len
 function parkedColors(){const s_=new Set();for(const b of S.bays)if(b)s_.add(ccol(L.cars[b.car]));return s_}
 function pwFx(k,x,y){const P=PW[k];x=x==null?cw/2:x;y=y==null?lotY+L.h*cell*0.4:y;ring(x,y,P.c,cell*2.2);ring(x,y,'#ffffff',cell*1.4);sparks(x,y,14,mixHex(P.c,'#ffffff',0.4));burst(x,y,P.c,26);floaters.push({x,y:y-cell*0.6,t0:now(),txt:P.n+'!',col:P.c,big:1.25,dur:1.3});sfx('combo',4);shake(4,0.25);buzz([20,30,40])}
 function doPwr(k,arg){
- {const inv0=invCount(k);setTimeout(()=>{if(invCount(k)<inv0){pwUsedLevel++;goalBump('pwr');stat('power')}},0)}
+ {const inv0=invCount(k);setTimeout(()=>{if(invCount(k)<inv0){pwUsedLevel++;if(k!=='hint'&&mode.type!=='endless'){if(!pwCapped)toast('Boost used. This level now tops out at 2 stars.');pwCapped=1}goalBump('pwr');stat('power')}},0)}
  const t=now(),before=cloneS(S);let ok=true,fxAt=null;const ev=[];
  const carAt=id=>{const c=L.cars[id],m=L.cells[id][Math.floor(c.len/2)];return[gx(m[0]),gy(m[1])]};
  switch(k){
