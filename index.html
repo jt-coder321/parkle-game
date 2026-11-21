@@ -325,6 +325,13 @@ body.calmui *,body.calmui *::before{animation:none!important;transition:none!imp
 .coinchip{display:flex;align-items:center;gap:3px;flex:none;background:#fff4c9;border:2.5px solid var(--ink);border-radius:99px;padding:3px 9px 3px 6px;font-family:var(--display);font-size:16px;box-shadow:0 2px 0 var(--line)}.coinchip b{font-weight:700;color:#6a4a00}.coinchip.pop{animation:cpop .4s}@keyframes cpop{50%{transform:scale(1.18)}}
 .lbonus{background:#fff4c9;border:2px solid #f5b82e;border-radius:12px;padding:8px 10px;font-weight:800;color:#7a5600;margin:4px 0 10px}
 
+.shboost{grid-column:1/-1;display:flex;align-items:center;gap:10px;background:var(--chip);border:3px solid var(--ink);border-radius:18px;padding:8px 10px;text-align:left}
+.shboost img{width:48px;height:48px;flex:none}.shboost .sbt{flex:1;min-width:0;display:flex;flex-direction:column}.shboost .sbt b{font-size:16px}.shboost .sbt small{font-size:12px;color:var(--muted);line-height:1.25}
+.sbown{font-size:13px;background:var(--panel);border-radius:99px;padding:0 6px;border:2px solid var(--ink)}
+.sbbuy{display:flex;flex-direction:column;gap:6px;flex:none}.sbbuy .btn{width:auto!important;height:34px!important;font-size:14px!important;padding:0 10px!important;margin:0;white-space:nowrap}
+.sblock{flex:none;font-weight:800;font-size:13px;color:var(--muted)}.shboost.locked img{filter:grayscale(1);opacity:.5}
+.pw.buy .pwn{font-size:13px;background:#fff4c9;color:#3a2c00}
+.cxcoin{font-size:64px;line-height:96px;height:96px}
 /* ---- contrast fixes: text meets WCAG AA (4.5:1, or 3:1 for large text) in every theme ---- */
 :root{--accentFill:#c93c22;--muted:#4f5a6e}
 body.t-snow{--accentFill:#2a6fd6;--muted:#4a5a73}
@@ -436,7 +443,7 @@ body.t-night .arday span{color:#ffd27a}
 </div></div>
 
 <div class="ov" id="ovShop" hidden><div class="card">
- <h2>Shop</h2><p>Spend coins from wins, achievements and chests. Looks only, no effect on play. <b class="coinb" id="shCoins"></b></p>
+ <h2>Shop</h2><p>Spend coins from wins, achievements and chests on boosts and looks. <b class="coinb" id="shCoins"></b></p>
  <div class="chips" id="shTabs"></div>
  <div id="shList" class="scrl shgrid"></div>
  <button class="btn" id="shBack">Back</button>
@@ -1498,22 +1505,27 @@ function showGoals(){const G=goalsToday();
  const all=G.list.every(g=>g.claimed);h+='<div class="goal bonus"><div class="gt"><b>Finish all 3</b><small>Bonus: 3 power-ups</small></div>'+(G.bonus?'<span class="gok">✓</span>':'<button class="btn small'+(all?' primary':'')+'" data-i="b"'+(all?'':' disabled')+'>'+(all?'Claim':'Bonus')+'</button>')+'</div>';
  $('glList').innerHTML=h;showOv('ovGoals')}
 $('glList').addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(!b||b.disabled)return;const G=goalsToday();let got;
- if(b.dataset.i==='b'){G.bonus=true;got=rollLoot(3);persist();updateGoalBadge();openChest('Daily bonus!',got,()=>{updateHUD();showGoals()});return}else{G.list[+b.dataset.i].claimed=true;got=rollLoot(1)}persist();sfx('combo',3);toast('You got '+got.map(k=>PW[k].n).join(', ')+'!');updateGoalBadge();updateHUD();showGoals()});
+ if(b.dataset.i==='b'){G.bonus=true;save.coins+=80;persist();updateGoalBadge();openChest('Daily bonus!',[{coins:80}],()=>{updateHUD();showGoals()});return}else{G.list[+b.dataset.i].claimed=true;save.coins+=25}persist();sfx('combo',3);toast('Goal done! +25 coins');updateGoalBadge();updateHUD();showGoals()});
 $('glBack').onclick=()=>{sfx('ui');showMenu()};
 $('mGoals').onclick=()=>{sfx('ui');showGoals()};
-let lastCoins=0,redo=[],pwUsedLevel=0,rushOn=false,rushLeft=0,timeUp=false,rushShown=-1;
+const HINT_COST=5;let lastCoins=0,redo=[],pwUsedLevel=0,rushOn=false,rushLeft=0,timeUp=false,rushShown=-1;
 // day streak: days in a row on which you cleared at least one level of any kind
 function streakDay(off){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+(off||0));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function streakNow(){if(save.lastPlay===undefined&&save.lastDaily)save.lastPlay=save.lastDaily;const lp=save.lastPlay;if(lp!==streakDay(0)&&lp!==streakDay(-1))return 0;return save.streak||0}
 function bumpStreak(){const today=streakDay(0);if(save.lastPlay===undefined&&save.lastDaily)save.lastPlay=save.lastDaily;if(save.lastPlay===today)return;save.streak=(save.lastPlay===streakDay(-1)?(save.streak||0):0)+1;save.lastPlay=today}
+// coins for a win: paid for new stars only, so replays can't be farmed; bigger levels pay a little more
+const STAR_COINS=[0,10,18,28];
+function winCoins(stars,prev,lv){const prog=Math.floor((lv||1)/25)*2,pay=x=>x?STAR_COINS[x]+prog:0;const c=pay(stars)-pay(prev);return prev?(c>0?c:2):c}
 function recordWin(){bumpStreak();
  const assists=undos,stars=assists===0?3:assists<=3?2:1;lastStars=stars;
+ const prev=mode.type==='level'?(save.stars[mode.n]||0):mode.type==='pack'?(((save.packs[mode.pk]||[])[mode.i])||0):mode.type==='daily'?(save.daily[mode.date]||0):0,first=!prev;
  if(mode.type==='level'){const n=mode.n;save.stars[n]=Math.max(save.stars[n]||0,stars);if(save.unlocked<=n)save.unlocked=n+1;save.cur=Math.max(save.cur,n+1)}if(mode.type==='level'&&typeof submitLeader==='function')submitLeader(true);if(mode.type==='level')cardWin(mode.n);
  else if(mode.type==='pack'){const a=save.packs[mode.pk]=save.packs[mode.pk]||[];a[mode.i]=Math.max(a[mode.i]||0,stars);stat('packs')}
  else{const k=mode.date;const had=save.daily[k];save.daily[k]=Math.max(had||0,stars);if(!had&&k===todayKey())save.lastDaily=k}
- lastLoot=rollLoot((stars===3?2:1)+(L.boss&&mode.type==='level'?2:0)+(mode.type==='daily'?1:0));
- if(save.failRun&&mode.type==='level'&&save.failRun.n===mode.n)save.failRun=null;lastCoins=5+stars*5+(L.boss&&mode.type==='level'?10:0)+(mode.type==='daily'?10:0)+(mode.type==='pack'?10:0)+(L.chal&&mode.type==='level'?10:0);save.coins+=lastCoins;
- if(L.chal&&mode.type==='level'){lastLoot=lastLoot.concat(rollLoot(2));save.medals=save.medals||{};save.medals[mode.n]=1}
+ // boosts only come from bosses (first clear); everything else pays coins
+ const isBoss=L.boss&&mode.type==='level',bigBoss=isBoss&&mode.n%25===0;lastLoot=isBoss&&first?rollLoot(bigBoss?3:2):[];
+ if(save.failRun&&mode.type==='level'&&save.failRun.n===mode.n)save.failRun=null;lastCoins=(mode.type==='endless'?Math.max(4,stars*4):winCoins(stars,prev,mode.type==='level'?mode.n:save.unlocked))+(first?(isBoss?(bigBoss?50:25):0)+(mode.type==='daily'?20:0)+(mode.type==='pack'?15:0)+(L.chal&&mode.type==='level'?25:0):0);save.coins+=lastCoins;
+ if(L.chal&&mode.type==='level'){save.medals=save.medals||{};save.medals[mode.n]=1}
  stat('wins');if(stars===3)stat('three');if(!pwUsedLevel&&!undos)stat('clean');if(L.boss&&mode.type==='level')stat('bosses');if(L.chal&&mode.type==='level')stat('chals');if(mode.type==='daily')stat('dailies');
  goalBump('win');if(stars===3)goalBump('three');if(!pwUsedLevel)goalBump('nopwr');if(mode.type==='daily')goalBump('daily');goalBump('riders',S.qi);
  persist();
@@ -1544,8 +1556,8 @@ function hintWords(sol){const id=sol[0],c=L.cars[id],cc=ccol(c),f=S.q[S.qi];cons
 function doHint(free){
  if(L.chal==='noundo'&&mode.type==='level'){toast('Hints are off on this challenge level.');return}
  if(ended){toast('Undo first, then ask for a hint.');return}
- // a hint costs 1 coin and never costs stars
- if(!free){if((save.coins||0)<1){toast('A hint costs 1 coin. Win a level to earn more coins.');sfx('bump');return}save.coins--;persist();updateHintBtn();toast('Hint used: 1 coin. '+save.coins+' left.')}
+ // a hint costs HINT_COST coins and never costs stars
+ if(!free){if((save.coins||0)<HINT_COST){toast('A hint costs '+HINT_COST+' coins. Win a level to earn more coins.');sfx('bump');return}save.coins-=HINT_COST;persist();updateHintBtn();toast('Hint used: '+HINT_COST+' coins. '+save.coins+' left.')}
  const ri_=[];L.sol.forEach((id,k)=>ri_[id]=k);
  let r=solve(L,S,{budget:6000,prio:(s,id)=>ri_[id]});
  if(!r.sol&&r.timedOut)r=solve(L,S,{budget:20000,prio:needPrio(L)});
@@ -1586,8 +1598,8 @@ function showLose(){
  $('lText').textContent=timeUp?'The clock ran out with '+(S.q.length-S.qi)+' riders still waiting.':mo?'A car with a parking meter was still parked when its time ran out. Undo and get it out sooner.':dm?(dm.extra+' '+COL[dm.col].n+' rider'+(dm.extra>1?'s have':' has')+' no seat left in any '+COL[dm.col].n+' car.'+(L.feats.includes('rainbow')?' A rainbow rider took one of those seats.':'')+' Undo and try another order.'):!S.bays.includes(null)?'All stops are full and nobody at the front of the line fits. Undo and free a different car.':'No car can move right now and the line is stuck. Undo and try another order.';
  if(mode.type==='endless'){const b=save.best[mode.key];$('lText').textContent+=' Run so far: '+mode.cars+' cars, wave '+mode.wave+'.'+(b?' Best: '+b.cars+' cars.':'')}
  $('lRetry').textContent=mode.type==='endless'?'End run':'Retry';$('lBoost').hidden=!invTotal();
- {const fb=$('lBonus');fb.hidden=true;if(mode.type==='level'&&showLose.tok!==endToken){showLose.tok=endToken;const f=save.failRun=(save.failRun&&save.failRun.n===mode.n)?save.failRun:{n:mode.n,c:0};f.c++;if(f.c%3===0){save.coins=(save.coins||0)+3;persist();updateHUD();if(typeof updateHintBtn==='function')updateHintBtn();showLose.bonus=endToken}else persist()}
-  if(showLose.bonus===endToken){fb.textContent='Nice try! Here are 3 bonus coins \u{1FA99} to help you out.';fb.hidden=false}}
+ {const fb=$('lBonus');fb.hidden=true;if(mode.type==='level'&&showLose.tok!==endToken){showLose.tok=endToken;const f=save.failRun=(save.failRun&&save.failRun.n===mode.n)?save.failRun:{n:mode.n,c:0};f.c++;if(f.c%3===0){save.coins=(save.coins||0)+10;persist();updateHUD();if(typeof updateHintBtn==='function')updateHintBtn();showLose.bonus=endToken}else persist()}
+  if(showLose.bonus===endToken){fb.textContent='Nice try! Here are 10 bonus coins \u{1FA99} to help you out.';fb.hidden=false}}
  showOv('ovLose');sfx('lose');buzz(60);shake(5,0.3);flashT=now();flashCol='232,72,75';
 }
 function showIntro(title,text,k,lbl){$('iTitle').textContent=title;$('iText').textContent=text;$('iLbl').textContent=lbl;drawIntroIcon(k);$('ovIntro').hidden=false;$('iOk').onclick=()=>{save.seen[k==='boss'?'boss'+mode.n:k.startsWith('chal')?'ch'+mode.n:k==='district'?'d'+districtOf(mode.n):k]=1;persist();hideOv('ovIntro');sfx('ui')}}
@@ -1606,7 +1618,7 @@ const CHEST=30;
 function starTotal(){return Object.values(save.stars).reduce((a,b)=>a+b,0)}
 function chestsReady(){return Math.floor(starTotal()/CHEST)-(save.chests||0)}
 function updateChest(){const n=chestsReady(),into=starTotal()%CHEST;$('mChest').innerHTML='<i>\u{1F9F0}</i><b>Star chest</b><small>'+(n>0?'Ready to open!':into+' / '+CHEST+' \u2605')+'</small>'+(n>0?'<span class="badge">'+n+'</span>':'');$('mChest').classList.toggle('hot',n>0)}
-$('mChest').onclick=()=>{sfx('ui');if(chestsReady()<=0){toast('Earn '+(CHEST-starTotal()%CHEST)+' more stars to open the next chest.');return}save.chests=(save.chests||0)+1;stat('chests');const got=rollLoot(4);save.coins+=40;persist();openChest('Star chest!',got,()=>{updateChest();updateHUD();showMenu();toast('+40 coins for the shop!')})};
+$('mChest').onclick=()=>{sfx('ui');if(chestsReady()<=0){toast('Earn '+(CHEST-starTotal()%CHEST)+' more stars to open the next chest.');return}save.chests=(save.chests||0)+1;stat('chests');save.coins+=120;persist();openChest('Star chest!',[{coins:120}],()=>{updateChest();updateHUD();showMenu()})};
 // full-screen chest reveal: shake, burst open, rewards fly out one by one
 function openChest(title,got,done){const ov=$('ovChest');ov.className='';ov.hidden=false;$('cxTitle').textContent=title;$('cxSub').textContent='Tap the chest to open it';$('cxSub').hidden=false;$('cxLoot').innerHTML='';$('cxGo').hidden=true;
  let cv2=$('cxConf');if(!cv2){cv2=document.createElement('canvas');cv2.id='cxConf';ov.appendChild(cv2)}
@@ -1614,7 +1626,7 @@ function openChest(title,got,done){const ov=$('ovChest');ov.className='';ov.hidd
  const open=()=>{if(opened)return;opened=true;$('cxSub').hidden=true;ov.classList.add('shake');sfx('hint');buzz([20,40,20,40,20]);
   let k=0;const tick=setInterval(()=>{sfx('board',k++)},110);
   setTimeout(()=>{clearInterval(tick);ov.classList.remove('shake');ov.classList.add('open');sfx('win');buzz([60,30,120]);confettiBurst(cv2);
-   got.forEach((g,i)=>setTimeout(()=>{const P=PW[g],d=document.createElement('div');d.className='cxcard';d.innerHTML='<img alt="" src="'+pwIcon(g,96)+'">';const t_=document.createElement('div');t_.textContent=P.n;d.appendChild(t_);$('cxLoot').appendChild(d);sfx('combo',i+2);buzz(15)},500+i*330));
+   got.forEach((g,i)=>setTimeout(()=>{const isC=typeof g==='object',P=isC?null:PW[g],d=document.createElement('div');d.className='cxcard';d.innerHTML=isC?'<div class="cxcoin">\u{1FA99}</div>':'<img alt="" src="'+pwIcon(g,96)+'">';const t_=document.createElement('div');t_.textContent=isC?'+'+g.coins+' coins':P.n;d.appendChild(t_);$('cxLoot').appendChild(d);sfx('combo',i+2);buzz(15)},500+i*330));
    setTimeout(()=>{$('cxGo').hidden=false},600+got.length*330)},900)};
  box.onclick=open;ov.onclick=e=>{if(e.target===ov||e.target.classList.contains('cxrays'))open()};
  $('cxGo').onclick=e=>{e.stopPropagation();sfx('ui');ov.hidden=true;done&&done()};
@@ -1710,7 +1722,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611210255';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611210628';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -1758,7 +1770,7 @@ $('bRedo').onclick=()=>{ensureAudio();if(!redo.length)return;hist.push(cloneS(S)
 $('bHint').onclick=()=>{ensureAudio();doHint()};
 function syncCoins(){const el=$('hudCoins');if(!el)return;const v=String(save.coins||0);if(el.textContent!==v){if(el.textContent!=='0'||v!=='0'){const c=$('coinChip');c.classList.remove('pop');void c.offsetWidth;c.classList.add('pop')}el.textContent=v}}
 setInterval(syncCoins,500);
-function updateHintBtn(){syncCoins();const b=$('bHint');if(!b)return;let c=b.querySelector('.hcost');if(!c){c=document.createElement('span');c.className='hcost';b.appendChild(c)}c.textContent='1\u{1FA99}';b.classList.toggle('poor',(save.coins||0)<1)}
+function updateHintBtn(){syncCoins();const b=$('bHint');if(!b)return;let c=b.querySelector('.hcost');if(!c){c=document.createElement('span');c.className='hcost';b.appendChild(c)}c.textContent=HINT_COST+'\u{1FA99}';b.classList.toggle('poor',(save.coins||0)<HINT_COST)}
 $('bRestart').onclick=()=>{ensureAudio();doRestart()};
 document.addEventListener('pointerdown',()=>ensureAudio(),{once:true});
 
@@ -2411,26 +2423,26 @@ function L_fog_icon(g){drawCar({id:-1,len:2,color:0,frozen:0,lock:-1,key:-1},[[6
 
 // ---------- power-ups ----------
 const PWR=[
- {k:'stop',n:'Extra Stop',d:'Opens one more parking stop.',c:'#45c07f'},
- {k:'tow',n:'Tow Truck',d:'Lifts any car away. Its riders leave too.',c:'#f68a3c',tgt:'car',tip:'Tap a car to tow it.',how:'Then tap a car'},
- {k:'sweep',n:'Send Off',d:'A parked car leaves now, even if not full.',c:'#2dbfc6',tgt:'sweep',tip:'Tap a parked car at a stop.',how:'Then tap a stop'},
- {k:'ghost',n:'Ghost Car',d:'A car drives out right through anything.',c:'#9a6bf0',tgt:'car',tip:'Tap a car to ghost it out.',how:'Then tap a car'},
- {k:'uturn',n:'U-Turn',d:'Turns a car to face the other way.',c:'#4a8cf0',tgt:'car',tip:'Tap a car to turn it.',how:'Then tap a car'},
- {k:'paint',n:'Paint Swap',d:'Paints a car the color the next rider wants.',c:'#f06fb4',tgt:'car',tip:'Tap a car to paint it.',how:'Then tap a car'},
- {k:'magnet',n:'Magnet',d:'Pulls riders for parked cars to the front.',c:'#ef5a5a'},
- {k:'cut',n:'Line Jump',d:'One rider for a parked car jumps to the front.',c:'#f5c445'},
- {k:'sort',n:'Line Sort',d:'Groups the whole line by color.',c:'#45c07f'},
- {k:'fog',n:'Fog Light',d:'Shows every car hidden by fog or a tarp.',c:'#9aa3b5',min:14},
- {k:'heat',n:'Heater',d:'Melts every frozen car.',c:'#ff7a3c',min:11},
- {k:'key',n:'Master Key',d:'Opens every locked car.',c:'#f5b82e',min:21},
- {k:'gate',n:'Gate Opener',d:'Opens every gate, drawbridge and traffic light, and stops trains.',c:'#e8484b',min:24},
- {k:'cone',n:'Cone Clear',d:'Removes every traffic cone.',c:'#ff8a2a',min:7},
- {k:'arrow',n:'Arrow Wipe',d:'Removes every one-way arrow, turntable and no-entry sign.',c:'#2dbfc6',min:17},
- {k:'hint',n:'Free Hint',d:'Shows a good move without spending a coin.',c:'#f5c445'},
- {k:'rewind',n:'Rewind',d:'Takes back up to 5 moves for free.',c:'#4a8cf0'},
- {k:'valet',n:'Valet',d:'Makes the next best move for you.',c:'#45c07f'},
- {k:'chauffeur',n:'Chauffeur',d:'Makes the next 3 best moves for you.',c:'#9a6bf0'},
- {k:'shield',n:'Star Shield',d:'Your next 3 undos don’t cost stars.',c:'#f5b82e'},
+ {k:'stop',cost:120,n:'Extra Stop',d:'Opens one more parking stop.',c:'#45c07f'},
+ {k:'tow',cost:100,n:'Tow Truck',d:'Lifts any car away. Its riders leave too.',c:'#f68a3c',tgt:'car',tip:'Tap a car to tow it.',how:'Then tap a car'},
+ {k:'sweep',cost:60,n:'Send Off',d:'A parked car leaves now, even if not full.',c:'#2dbfc6',tgt:'sweep',tip:'Tap a parked car at a stop.',how:'Then tap a stop'},
+ {k:'ghost',cost:130,min:20,n:'Ghost Car',d:'A car drives out right through anything.',c:'#9a6bf0',tgt:'car',tip:'Tap a car to ghost it out.',how:'Then tap a car'},
+ {k:'uturn',cost:60,n:'U-Turn',d:'Turns a car to face the other way.',c:'#4a8cf0',tgt:'car',tip:'Tap a car to turn it.',how:'Then tap a car'},
+ {k:'paint',cost:80,min:10,n:'Paint Swap',d:'Paints a car the color the next rider wants.',c:'#f06fb4',tgt:'car',tip:'Tap a car to paint it.',how:'Then tap a car'},
+ {k:'magnet',cost:70,n:'Magnet',d:'Pulls riders for parked cars to the front.',c:'#ef5a5a'},
+ {k:'cut',cost:35,n:'Line Jump',d:'One rider for a parked car jumps to the front.',c:'#f5c445'},
+ {k:'sort',cost:110,min:30,n:'Line Sort',d:'Groups the whole line by color.',c:'#45c07f'},
+ {k:'fog',cost:30,n:'Fog Light',d:'Shows every car hidden by fog or a tarp.',c:'#9aa3b5',min:14},
+ {k:'heat',cost:45,n:'Heater',d:'Melts every frozen car.',c:'#ff7a3c',min:11},
+ {k:'key',cost:45,n:'Master Key',d:'Opens every locked car.',c:'#f5b82e',min:21},
+ {k:'gate',cost:55,n:'Gate Opener',d:'Opens every gate, drawbridge and traffic light, and stops trains.',c:'#e8484b',min:24},
+ {k:'cone',cost:30,n:'Cone Clear',d:'Removes every traffic cone.',c:'#ff8a2a',min:7},
+ {k:'arrow',cost:50,n:'Arrow Wipe',d:'Removes every one-way arrow, turntable and no-entry sign.',c:'#2dbfc6',min:17},
+ {k:'hint',cost:20,n:'Free Hint',d:'Shows a good move without spending a coin.',c:'#f5c445'},
+ {k:'rewind',cost:50,n:'Rewind',d:'Takes back up to 5 moves for free.',c:'#4a8cf0'},
+ {k:'valet',cost:60,n:'Valet',d:'Makes the next best move for you.',c:'#45c07f'},
+ {k:'chauffeur',cost:160,min:40,n:'Chauffeur',d:'Makes the next 3 best moves for you.',c:'#9a6bf0'},
+ {k:'shield',cost:45,n:'Star Shield',d:'Your next 3 undos don’t cost stars.',c:'#f5b82e'},
 ];
 const PW={};PWR.forEach(p=>PW[p.k]=p);
 if(!save.inv){save.inv={stop:2,hint:2,valet:1,magnet:1,rewind:1,tow:1};persist()}
@@ -2501,7 +2513,7 @@ function pwIcon(k,sz){const key=k+sz;if(iconCache[key])return iconCache[key];con
   g.restore();
  }catch(e){console.error(e)}finally{cx=old;cell=oldCell;S=S0}
  iconCache[key]=cvs.toDataURL();return iconCache[key]}
-function pwCard(P,n,why,cls){return'<button class="pw '+cls+'" data-k="'+P.k+'"'+(cls==='ready'?'':' disabled')+'><img src="'+pwIcon(P.k,96)+'" alt=""><span class="pwt"><b>'+P.n+'</b><small>'+P.d+'</small>'+(cls==='ready'&&P.how?'<i class="pwhow">'+P.how+'</i>':'')+(why?'<i class="pwwhy">'+why+'</i>':'')+'</span><span class="pwn">'+(n?'×'+n:'0')+'</span></button>'}
+function pwCard(P,n,why,cls){return'<button class="pw '+cls+'" data-k="'+P.k+'"'+(cls==='ready'||cls==='buy'?'':' disabled')+'><img src="'+pwIcon(P.k,96)+'" alt=""><span class="pwt"><b>'+P.n+'</b><small>'+P.d+'</small>'+(cls==='ready'&&P.how?'<i class="pwhow">'+P.how+'</i>':'')+(why?'<i class="pwwhy">'+why+'</i>':'')+'</span><span class="pwn">'+(cls==='buy'?P.cost+'\u{1FA99}':n?'×'+n:'0')+'</span></button>'}
 function showBoosts(){
  const lv=save.unlocked,ready=[],idle=[],none=[];
  for(const P of PWR){const n=invCount(P.k);if(!n){none.push(P);continue}const w=pwBlock(P.k);(w?idle:ready).push([P,w])}
@@ -2509,13 +2521,13 @@ function showBoosts(){
  let h='';
  if(ready.length)h+='<div class="pwh">Ready to use</div>'+ready.map(([P])=>pwCard(P,invCount(P.k),'','ready')).join('');
  if(idle.length)h+='<div class="pwh">You have these, but not useful right now</div>'+idle.map(([P,w])=>pwCard(P,invCount(P.k),w,'idle')).join('');
- if(none.length)h+='<div class="pwh">Earn these by clearing levels</div>'+none.map(P=>pwCard(P,0,(P.min||0)>lv?'Shows up from level '+P.min:'','none')).join('');
+ if(none.length)h+='<div class="pwh">Buy with coins (you have '+save.coins+')</div>'+none.map(P=>(P.min||0)>lv?pwCard(P,0,'Unlocks at level '+P.min,'none'):pwCard(P,0,'','buy')).join('');
  $('pwGrid').innerHTML=h;
- $('pwSub').textContent=ready.length?'Tap one to use it.':invTotal()?'None of yours help on this move. Keep them for later.':'You have none yet. Clear levels to earn them.';
+ $('pwSub').textContent=ready.length?'Tap one to use it.':invTotal()?'None of yours help on this move. Keep them for later.':'You have none yet. Buy them with coins below or in the Shop.';
  $('pwGrid').scrollTop=0;
  showOv('ovBoost');
 }
-$('pwGrid').addEventListener('click',e=>{const b=e.target.closest('.pw');if(!b||b.disabled)return;sfx('ui');usePwr(b.dataset.k)});
+$('pwGrid').addEventListener('click',e=>{const b=e.target.closest('.pw');if(!b||b.disabled)return;sfx('ui');if(b.classList.contains('buy')){const k=b.dataset.k;if(b.dataset.arm!=='1'){document.querySelectorAll('#pwGrid .pw.buy').forEach(x=>x.dataset.arm='');b.dataset.arm='1';toast('Tap again to buy '+PW[k].n+' for '+PW[k].cost+' coins.');return}if(buyBoost(k,1))showBoosts();return}usePwr(b.dataset.k)});
 function usePwr(k){const P=PW[k];if(mode.type==='pack'){toast('Power-ups are off in puzzle packs. Each puzzle has one way to win.');return}if(L.chal==='nopower'&&mode.type==='level'){toast('Power-ups are off on this challenge level.');return}if(L.chal==='noundo'&&k==='rewind'){toast('No rewinds on this challenge level.');return}if(!invCount(k)){toast('You don’t have any of these yet.');return}
  if(P.tgt){hideAll();target=k;toast(P.tip+' Tap empty space to cancel.');return}
  hideAll();doPwr(k,null)}
@@ -2615,7 +2627,7 @@ const ACH=[
 ];
 function achProg(a){if(a[3]==='garage')return Object.keys(save.garage).filter(k=>save.garage[k]>0).length;return save.stats[a[3]]||0}
 function achNeed(a){return a[3]==='garage'?Object.keys(VCAP).length:a[4]}
-function checkAch(){for(const a of ACH){if(save.ach[a[0]])continue;if(achProg(a)>=achNeed(a)){save.ach[a[0]]=Date.now();const got=rollLoot(1);save.coins=(save.coins||0)+25;setTimeout(()=>{toast('\u{1F3C6} Achievement: '+a[1]+'! +1 '+PW[got[0]].n+', +25 coins');sfx('combo',5);buzz([30,40,60])},900)}}}
+function checkAch(){for(const a of ACH){if(save.ach[a[0]])continue;if(achProg(a)>=achNeed(a)){save.ach[a[0]]=Date.now();save.coins=(save.coins||0)+60;setTimeout(()=>{toast('\u{1F3C6} Achievement: '+a[1]+'! +60 coins');sfx('combo',5);buzz([30,40,60])},900)}}}
 const VINFO={bendy:'Four spaces long with a squeezy middle. Seats 16.',taxi:'Zips through tiny gaps.',bubble:'Round, cheerful and very small.',mini:'Small outside, roomy inside.',sport:'Fast, but only two seats.',beetle:'A classic curvy runabout.',sedan:'The everyday family car.',hatch:'Compact with a handy back door.',jeep:'Built for rough roads.',pickup:'Riders sit up front and in back.',van:'Lots of room for a crowd.',camper:'A tiny house on wheels.',limo:'Long, shiny and fancy.',tram:'Glides along in a straight line.',bus:'The classic city bus.',coach:'The biggest road vehicle here.',ferry:'Sails the canal, seats 14.'};
 const VORDER=['taxi','bubble','mini','sport','beetle','sedan','hatch','jeep','pickup','van','camper','limo','tram','bus','coach','bendy','ferry'];
 const vIconCache={};
@@ -2809,15 +2821,22 @@ function shopIcon(cat,k){const key=cat+':'+k+':'+(save.settings.cb?1:0);if(shopI
  }finally{cx=old;cell=oc}return shopIconCache[key]=c.toDataURL()}
 let shopTab='finish';
 const ownedIn=c=>SHOP[c].items.filter(it=>!it[2]||save.owned[c+':'+it[0]]).length;
+const pack3=c=>Math.round(c*2.7/5)*5;
+function boostShopHTML(){const lv=save.unlocked;
+ return'<div class="shcol">Boosts help when you are stuck. Bosses give a few for free.</div>'+PWR.slice().sort((a,b)=>(a.min||0)-(b.min||0)||a.cost-b.cost).map(P=>{const lock=(P.min||0)>lv,n=invCount(P.k);
+  return'<div class="shboost'+(lock?' locked':'')+'"><img src="'+pwIcon(P.k,96)+'" alt=""><div class="sbt"><b>'+P.n+(n?' <span class="sbown">\u00d7'+n+'</span>':'')+'</b><small>'+P.d+'</small></div>'+(lock?'<span class="sblock">Level '+P.min+'</span>':'<div class="sbbuy"><button class="btn small'+(save.coins>=P.cost?' primary2':'')+'" data-buy="'+P.k+'" data-q="1">1 \u00b7 '+P.cost+'</button><button class="btn small'+(save.coins>=pack3(P.cost)?' primary2':'')+'" data-buy="'+P.k+'" data-q="3">3 \u00b7 '+pack3(P.cost)+'</button></div>')+'</div>'}).join('')}
+function buyBoost(k,q){const P=PW[k];if(!P||(P.min||0)>save.unlocked)return false;const price=q===3?pack3(P.cost):P.cost;if(save.coins<price){toast('You need '+(price-save.coins)+' more coins. Win levels to earn coins.');sfx('bump');return false}
+ save.coins-=price;save.inv[k]=(save.inv[k]||0)+q;persist();try{syncCoins()}catch(e){}sfx('combo',4);buzz([20,30,40]);toast((q>1?q+' ':'')+P.n+(q>1?'s':'')+' added. '+save.coins+' coins left.');stat('buys');return true}
 function showShop(){$('shCoins').textContent=save.coins+' coins';
- $('shTabs').innerHTML=Object.keys(SHOP).map(k=>'<button class="chip'+(k===shopTab?' on':'')+'" data-t="'+k+'">'+SHOP[k].t+' <small>'+ownedIn(k)+'/'+SHOP[k].items.length+'</small></button>').join('');
+ $('shTabs').innerHTML='<button class="chip'+(shopTab==='boost'?' on':'')+'" data-t="boost">\u26A1 Boosts</button>'+Object.keys(SHOP).map(k=>'<button class="chip'+(k===shopTab?' on':'')+'" data-t="'+k+'">'+SHOP[k].t+' <small>'+ownedIn(k)+'/'+SHOP[k].items.length+'</small></button>').join('');
  const d=dealOfDay(),tot=ALL_ITEMS().length,got=ALL_ITEMS().filter(([c,it])=>save.owned[c+':'+it[0]]).length;
  let html='<div class="shdeal">'+(d?'<img src="'+shopIcon(d.c,d.k)+'" alt=""><div><small>Deal of the day</small><b>'+d.n+'</b><span><s>'+d.was+'</s> '+d.price+' coins</span></div><button class="btn small primary2" data-deal="1">Buy</button>':'<div><b>You own every item!</b><span>Collector supreme.</span></div>')+'</div><div class="shcol">Collection: '+got+' / '+tot+' items</div>';
+ if(shopTab==='boost'){$('shList').innerHTML=html+boostShopHTML();showOv('ovShop');return}
  html+=SHOP[shopTab].items.map(it=>{const [k,n]=it,price=priceOf(shopTab,it),own=!it[2]||save.owned[shopTab+':'+k],eq=save.equip[shopTab]===k;
   return'<div class="shitem'+(eq?' eq':'')+'"><img src="'+shopIcon(shopTab,k)+'" alt=""><b>'+n+'</b><button class="btn small'+(eq?'':own?' primary':save.coins>=price?' primary2':'')+'" data-k="'+k+'"'+(eq?' disabled':'')+'>'+(eq?'In use':own?'Use':price+' coins')+'</button>'+(shopTab==='horn'&&k!=='none'?'<button class="btn small" data-try="'+k+'">\u25B6 Listen</button>':'')+'</div>'}).join('');
  $('shList').innerHTML=html;showOv('ovShop')}
 $('shTabs').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;sfx('ui');shopTab=b.dataset.t;showShop()});
-$('shList').addEventListener('click',e=>{const tr=e.target.closest('button[data-try]');if(tr){ensureAudio();playHorn(tr.dataset.try);return}
+$('shList').addEventListener('click',e=>{const bb=e.target.closest('button[data-buy]');if(bb){if(buyBoost(bb.dataset.buy,+bb.dataset.q))showShop();return}const tr=e.target.closest('button[data-try]');if(tr){ensureAudio();playHorn(tr.dataset.try);return}
  const dl=e.target.closest('button[data-deal]');if(dl){const d=dealOfDay();if(!d)return;shopTab=d.c;buyItem(d.k);return}
  const b=e.target.closest('button[data-k]');if(!b)return;buyItem(b.dataset.k)});
 function buyItem(k){const it=SHOP[shopTab].items.find(x=>x[0]===k),id=shopTab+':'+k,price=priceOf(shopTab,it);
@@ -2841,18 +2860,18 @@ $('pkBack').onclick=()=>{sfx('ui');if(packView>=0)showPacks();else showMenu()};
 $('mPacks').onclick=()=>{sfx('ui');showPacks()};
 
 // ---------- daily gift calendar ----------
-var GIFTS=[['coins',30],['pw',1],['coins',50],['pw',2],['coins',80],['pw',3],['chest',150]];
+var GIFTS=[['coins',30],['coins',40],['coins',50],['coins',70],['coins',80],['coins',100],['chest',150]];
 function dayKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function giftState(){const g=save.gift||{last:null,day:0},today=todayKey();const y=new Date();y.setDate(y.getDate()-1);const yk=dayKey(y);
  const ready=g.last!==today,next=ready?(g.last===yk?(g.day%7)+1:1):g.day;return{ready,next}}
 function updateGift(){const st=giftState();$('mGiftN').hidden=!st.ready;$('mGiftS').textContent=st.ready?'Day '+st.next+' ready':'Day '+st.next+' claimed';$('mGift').classList.toggle('hot',st.ready)}
 function showGift(){const st=giftState();
- $('gfList').innerHTML=GIFTS.map((g,i)=>{const d=i+1,got=d<st.next||(!st.ready&&d===st.next),now=st.ready&&d===st.next;return'<div class="gift'+(got?' got':'')+(now?' now':'')+(d===7?' big':'')+'"><i>'+(got?'\u2705':g[0]==='coins'?'\u{1FA99}':g[0]==='pw'?'\u26A1':'\u{1F9F0}')+'</i>Day '+d+'<span>'+(g[0]==='coins'?g[1]+' coins':g[0]==='pw'?g[1]+' power-up'+(g[1]>1?'s':''):'Big chest')+'</span></div>'}).join('');
+ $('gfList').innerHTML=GIFTS.map((g,i)=>{const d=i+1,got=d<st.next||(!st.ready&&d===st.next),now=st.ready&&d===st.next;return'<div class="gift'+(got?' got':'')+(now?' now':'')+(d===7?' big':'')+'"><i>'+(got?'\u2705':g[0]==='coins'?'\u{1FA99}':g[0]==='pw'?'\u26A1':'\u{1F9F0}')+'</i>Day '+d+'<span>'+(g[0]==='coins'?g[1]+' coins':g[0]==='pw'?g[1]+' power-up'+(g[1]>1?'s':''):(g[1]+100)+' coin chest')+'</span></div>'}).join('');
  $('gfClaim').hidden=!st.ready;$('gfSub').textContent=st.ready?'Your day '+st.next+' gift is ready!':'Come back tomorrow for day '+((st.next%7)+1)+'.';showOv('ovGift')}
 $('gfClaim').onclick=()=>{const st=giftState();if(!st.ready)return;save.gift={last:todayKey(),day:st.next};const g=GIFTS[st.next-1];stat('gifts');
  if(g[0]==='coins'){save.coins+=g[1];persist();sfx('combo',4);buzz([20,30,40]);toast('+'+g[1]+' coins!');showGift()}
- else if(g[0]==='pw'){const got=rollLoot(g[1]);persist();sfx('combo',5);toast('You got '+got.map(k=>PW[k].n).join(', ')+'!');showGift()}
- else{save.coins+=g[1];const got=rollLoot(4);persist();openChest('Day 7 chest!',got,()=>{toast('+'+g[1]+' coins too!');showGift()})}
+ else if(g[0]==='pw'){const c=g[1]*35;save.coins+=c;persist();sfx('combo',5);toast('+'+c+' coins!');showGift()}
+ else{save.coins+=g[1]+100;persist();openChest('Day 7 chest!',[{coins:g[1]+100}],()=>{showGift()})}
  updateGift()};
 $('gfBack').onclick=()=>{sfx('ui');showMenu()};$('mGift').onclick=()=>{sfx('ui');showGift()};
 // ---------- how to play guide ----------
@@ -2890,7 +2909,7 @@ function saveResume(){try{if(!L||ended||mode.type==='endless'||!S||S.dep===0){if
 function tryResume(){const r=save.resume;if(!r||!r.mode)return false;try{const m=r.mode;if(m.type==='level')startLevel(m.n);else if(m.type==='daily')startDaily(m.date);else if(m.type==='pack')startPack(m.pk,m.i);else return false;
   if(r.sig!==lotSig()){save.resume=null;persist();return true}
   S=deserS(r.S);if(!S.brk)S.brk={};if(!S.wGone)S.wGone={};undos=r.undos||0;hints=r.hints||0;hist=[];resetView();reveal(L,S);updateHUD();hideAll();toast('Welcome back! Picking up where you left off.');return true}catch(e){save.resume=null;return false}}
-window.__parkle={showLose,PWR,pwBlock,ccol,audio:()=>({AC,master}),showGift,showGuide,tryResume,saveResume,get popIdx(){return popIdx},showShop,showPacks,startPack,openChest,showGoals,goalBump,get tut(){return tut},showWin,showLose,showMenu,showLevels,showSettings,showEndless,showPick,hideAll,save:()=>save,doPwr:(k,a)=>doPwr(k,a),startEndless:()=>startEndless(),get mode(){return mode},inv:()=>save.inv,showBoosts:()=>showBoosts(),dbg:()=>({fx:fx.map(f=>f.at),now:now(),done:animsDone(),tok:endToken}),get L(){return L},get S(){return S},tapCar,doUndo,doHint,startLevel,get ended(){return ended},layout,get cell(){return cell},get lot(){return[lotX,lotY]}};
+window.__parkle={get econ(){return{lastCoins,lastStars,lastLoot}},setShopTab:t=>{shopTab=t},showLose,PWR,pwBlock,ccol,audio:()=>({AC,master}),showGift,showGuide,tryResume,saveResume,get popIdx(){return popIdx},showShop,showPacks,startPack,openChest,showGoals,goalBump,get tut(){return tut},showWin,showLose,showMenu,showLevels,showSettings,showEndless,showPick,hideAll,save:()=>save,doPwr:(k,a)=>doPwr(k,a),startEndless:()=>startEndless(),get mode(){return mode},inv:()=>save.inv,showBoosts:()=>showBoosts(),dbg:()=>({fx:fx.map(f=>f.at),now:now(),done:animsDone(),tok:endToken}),get L(){return L},get S(){return S},tapCar,doUndo,doHint,startLevel,get ended(){return ended},layout,get cell(){return cell},get lot(){return[lotX,lotY]}};
 
 // ---- boarding circle: riders walk around it, and any of them can hop into a matching car ----
 function drawRingQueue(t,dt,started,T){const W=Math.min(L.ring,S.q.length-started),R=ringR,[cx0,cy0]=ringC,walkC=T.night?'#2c3462':mixHex(T.walk,'#000000',0.06),rs=ps*0.74;
