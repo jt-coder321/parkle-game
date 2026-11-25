@@ -355,6 +355,18 @@ body.t-night .arday span{color:#ffd27a}
 .codeNote{opacity:1;color:var(--muted)}
 .goal.locked{opacity:1}.goal.locked .gt small{color:var(--muted)}
 #sReset{color:#b3261e}body.t-night #sReset{color:#ff8a8a}
+/* Easy visual mode: bright, flat, chunky */
+.t-easy{--page:#8fd8f7;--hud:#ffffff;--hudInk:#17325c;--muted:#40587e;--accent:#ff8a2a;--accentFill:#c75400;--accent-ink:#ffffff;--panel:#ffffff;--panelInk:#17325c;--chip:#e6f3fc;--line:rgba(23,50,92,.16);--ink:#17325c}
+body.easyvis #hud{background:#ffffff;box-shadow:0 4px 0 rgba(23,50,92,.12)}
+body.easyvis #lvlName{font-size:24px;text-shadow:none}
+body.easyvis #lvlSub{font-size:13px}
+body.easyvis .icon{width:48px;height:48px;border-radius:16px;background:#ffd23f;color:#17325c;box-shadow:0 4px 0 #c99a00}
+body.easyvis .act{height:56px;border-radius:18px;background:#ffffff;color:#17325c;font-size:16px;box-shadow:0 5px 0 #5fa9d1}
+body.easyvis .act svg{width:22px;height:22px}
+body.easyvis .btn{border-radius:20px;box-shadow:0 5px 0 rgba(23,50,92,.25)}
+body.easyvis .btn.primary{background:linear-gradient(180deg,#ffa04d 0%,#c75400 100%);color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.25);animation:none}
+body.easyvis .card{border:0;box-shadow:0 8px 0 rgba(23,50,92,.18),0 20px 40px rgba(0,0,0,.2)}
+body.easyvis .coinchip{background:#ffffff;box-shadow:0 3px 0 rgba(23,50,92,.15)}
 </style>
 
 <div id="app">
@@ -522,6 +534,7 @@ body.t-night .arday span{color:#ffd27a}
  </div>
  <div class="spane" data-p="look" hidden>
   <div class="sgroup">
+   <div class="set"><span>Easy visual mode<small class="sver">Bright chunky buses, simple riders and a clean board. Same puzzles.</small></span><button class="sw" id="sEasy" role="switch" aria-checked="false" aria-label="Easy visual mode"></button></div>
    <div class="set">Colorblind mode<button class="sw" id="sCB" role="switch" aria-checked="false" aria-label="Colorblind mode"></button></div>
    <div class="set">Color shapes on cars<button class="sw" id="sShapes" role="switch" aria-checked="true" aria-label="Color shapes"></button></div>
    <div class="set">Bigger text<button class="sw" id="sBig" role="switch" aria-checked="false" aria-label="Bigger text"></button></div>
@@ -1107,6 +1120,7 @@ const THEMES={
  snow:{name:'Snow',unlock:11,grass:'#eef5fc',grass2:'#e0ecf8',road:'#6e7d97',lot:'#7c8ba6',line:'rgba(255,255,255,.28)',curb:'#ffffff',walk:'#d6e3f1',bay:'#f7fbff',bayLine:'#b8c9de',tree:'#7fb0a0',tree2:'#ffffff',song:'snow',snow:true},
  night:{name:'Night',unlock:21,grass:'#1d2650',grass2:'#1a2247',road:'#1b2140',lot:'#2b3459',line:'rgba(170,190,255,.15)',curb:'#59659a',walk:'#323b68',bay:'#2a3260',bayLine:'#4f5b93',tree:'#26407a',tree2:'#1f3466',song:'night',night:true},
  beach:{name:'Beach',unlock:31,grass:'#f2dca9',grass2:'#ead096',road:'#5e7c88',lot:'#6a8a96',line:'rgba(255,255,255,.2)',curb:'#fff7e2',walk:'#f7e9c4',bay:'#fffaf0',bayLine:'#d9c697',tree:'#3fb5a0',tree2:'#2a9584',song:'beach',beach:true},
+ easy:{name:'Easy',unlock:1,hidden:1,grass:'#8fd8f7',grass2:'#8fd8f7',road:'#b9c8de',lot:'#d6e0ee',line:'rgba(255,255,255,.75)',curb:'#ffffff',walk:'#ffffff',bay:'#f3f7fc',bayLine:'#a9bad3',tree:'#5cc96b',tree2:'#3fae55',song:'city',edge:'#7f93b5'},
  sunset:{name:'Sunset',unlock:50,grass:'#f4b99a',grass2:'#eeaa88',road:'#5a4660',lot:'#6a5470',line:'rgba(255,230,210,.18)',curb:'#ffe8da',walk:'#f6d3c0',bay:'#fff4ec',bayLine:'#d9a993',tree:'#c9677b',tree2:'#a8506a',song:'sunset'},
 };
 const SHAPES=['circle','tri','square','diamond','star','plus','ring','bolt'];
@@ -1292,7 +1306,7 @@ function cumOf(P){const C=[0];for(let i=1;i<P.length;i++)C.push(C[i-1]+Math.hypo
 let shakeMag=0,shakeUntil=0,introT0=0,flashT=-9,flashCol='255,255,255',stamp=null;
 // calm settings: Simple mode turns every effect off; each effect can also be turned off on its own
 const FXKEY={wx:'noWx',spark:'noSpark',glow:'noGlow',scene:'noScene',motion:'calm'};
-function fxOn(k){const s=save.settings;return !(s.simple||s[FXKEY[k]])}
+function fxOn(k){const s=save.settings;if(s.easy&&(k==='wx'||k==='scene'))return false;return !(s.simple||s[FXKEY[k]])}
 function shake(m,d){if(!fxOn('motion'))return;const t=now();if(t>shakeUntil)shakeMag=0;shakeMag=Math.max(shakeMag,m);shakeUntil=Math.max(shakeUntil,t+d)}
 const clamp01=x=>x<0?0:x>1?1:x;
 function easeOutBack(x){const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)}
@@ -1673,15 +1687,15 @@ $('lvGrid').addEventListener('click',e=>{
  const b=e.target.closest('.node');if(!b||b.disabled)return;sfx('ui');startLevel(+b.dataset.n)});
 $('lvZoom').onclick=()=>{sfx('ui');mapWorld=!mapWorld;showLevels()};
 function showSettings(){
- if($('sFails'))$('sFails').innerHTML=failLogHTML();const s=save.settings;$('sMusic').setAttribute('aria-checked',s.music);$('sSfx').setAttribute('aria-checked',s.sfx);$('sVib').setAttribute('aria-checked',s.vib);$('sCB').setAttribute('aria-checked',!!s.cb);$('sShapes').setAttribute('aria-checked',s.shapes);
- $('thList').innerHTML='<button class="th" data-k="auto" aria-pressed="'+(s.theme==='auto')+'"><i style="background:linear-gradient(90deg,#a7d49c 0 20%,#eef5fc 20% 40%,#1d2650 40% 60%,#f2dca9 60% 80%,#f4b99a 80%)"></i>Auto<small>Matches each district</small></button>'+Object.entries(THEMES).map(([k,v])=>{const lock=save.unlocked<v.unlock;return'<button class="th" data-k="'+k+'" aria-pressed="'+(s.theme===k)+'"'+(lock?' disabled':'')+'><i style="background:linear-gradient(90deg,'+v.grass+' 0 30%,'+v.lot+' 30% 70%,'+v.walk+' 70%)"></i>'+v.name+'<small>'+(lock?'Clear level '+(v.unlock-1):'Unlocked')+'</small></button>'}).join('');
+ if($('sFails'))$('sFails').innerHTML=failLogHTML();const s=save.settings;$('sMusic').setAttribute('aria-checked',s.music);$('sSfx').setAttribute('aria-checked',s.sfx);$('sVib').setAttribute('aria-checked',s.vib);$('sCB').setAttribute('aria-checked',!!s.cb);$('sShapes').setAttribute('aria-checked',s.shapes);$('sEasy').setAttribute('aria-checked',!!s.easy);
+ $('thList').innerHTML='<button class="th" data-k="auto" aria-pressed="'+(s.theme==='auto')+'"><i style="background:linear-gradient(90deg,#a7d49c 0 20%,#eef5fc 20% 40%,#1d2650 40% 60%,#f2dca9 60% 80%,#f4b99a 80%)"></i>Auto<small>Matches each district</small></button>'+Object.entries(THEMES).filter(([k])=>k!=='easy').map(([k,v])=>{const lock=save.unlocked<v.unlock;return'<button class="th" data-k="'+k+'" aria-pressed="'+(s.theme===k)+'"'+(lock?' disabled':'')+'><i style="background:linear-gradient(90deg,'+v.grass+' 0 30%,'+v.lot+' 30% 70%,'+v.walk+' 70%)"></i>'+v.name+'<small>'+(lock?'Clear level '+(v.unlock-1):'Unlocked')+'</small></button>'}).join('');
  $('sReset').textContent='Reset progress';$('sReset').dataset.arm='';$('sCode').hidden=true;$('sApplyCode').hidden=true;musicChips();$('sFast').setAttribute('aria-checked',!!s.fast);$('sBig').setAttribute('aria-checked',!!s.big);syncCalmUI();
  setTab(save.seen.setTab||'sound');showOv('ovSettings');
 }
 function setTab(t){document.querySelectorAll('#ovSettings .stab').forEach(b=>{const on=b.dataset.t===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});document.querySelectorAll('#ovSettings .spane').forEach(p=>p.hidden=p.dataset.p!==t)}
 document.querySelectorAll('#ovSettings .stab').forEach(b=>b.addEventListener('click',()=>{sfx('ui');setTab(b.dataset.t);save.seen.setTab=b.dataset.t;persist()}));
 $('thList').addEventListener('click',e=>{const b=e.target.closest('.th');if(!b||b.disabled)return;save.settings.theme=b.dataset.k;persist();applyTheme();showSettings();sfx('ui')});
-function applyTheme(){document.body.className='t-'+themeKey()}
+function applyTheme(){const ez=!!save.settings.easy;document.body.className='t-'+(ez?'easy':themeKey())+(ez?' easyvis':'');applyUiPrefs()}
 function toggle(id,key,after){$(id).addEventListener('click',()=>{save.settings[key]=!save.settings[key];persist();$(id).setAttribute('aria-checked',save.settings[key]);after&&after(save.settings[key]);ensureAudio();sfx('ui')})}
 toggle('sSfx','sfx',on=>{if(sfxG)sfxG.gain.value=on?0.75:0});
 toggle('sVib','vib',on=>{if(on)buzz(30)});
@@ -1690,6 +1704,7 @@ toggle('sFast','fast',on=>toast(on?'Animations sped up.':'Normal speed.'));
 toggle('sBig','big',applyUiPrefs);toggle('sCalm','calm',()=>{applyUiPrefs();syncCalmUI()});
 function syncCalmUI(){const s=save.settings,sm=!!s.simple;$('sSimple').setAttribute('aria-checked',sm);$('sCalm').setAttribute('aria-checked',sm||!!s.calm);$('sCalm').disabled=sm;
  for(const[id,k]of[['sWx','noWx'],['sSpark','noSpark'],['sGlow','noGlow'],['sScene','noScene']]){$(id).setAttribute('aria-checked',!sm&&!s[k]);$(id).disabled=sm}}
+$('sEasy').addEventListener('click',()=>{save.settings.easy=!save.settings.easy;persist();$('sEasy').setAttribute('aria-checked',!!save.settings.easy);sprC.clear();lotC=null;applyTheme();try{initScene()}catch(e){}parts.length=0;ensureAudio();sfx('ui');toast(save.settings.easy?'Easy visual mode on.':'Easy visual mode off.')});
 $('sSimple').addEventListener('click',()=>{save.settings.simple=!save.settings.simple;persist();applyUiPrefs();syncCalmUI();try{initScene()}catch(e){}parts.length=0;ensureAudio();sfx('ui')});
 for(const[id,k]of[['sWx','noWx'],['sSpark','noSpark'],['sGlow','noGlow'],['sScene','noScene']])$(id).addEventListener('click',()=>{if(save.settings.simple)return;save.settings[k]=!save.settings[k];persist();applyUiPrefs();syncCalmUI();if(k==='noWx')try{initScene()}catch(e){}if(k==='noSpark')parts.length=0;ensureAudio();sfx('ui')});
 // people whose phone asks for less motion start in Simple mode
@@ -1739,7 +1754,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611211423';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611252149';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -1931,7 +1946,7 @@ function drawHead(x,y,r,v,blink){
 const MYST={l:'#d5d9e2',c:'#aeb5c2',d:'#8b93a3',dd:'#5d6577',n:'grey'};
 function drawPerson(x,y,s,colIdx,t,bob,seed){
  if(cx!==mainCx||seed==null||s>90)return drawPersonRaw(x,y,s,colIdx,t,bob,seed);
- const ph=(seed||0)*1.37,blink=bob&&((t*0.7+ph)%3.2)<0.09,key=seed+'|'+colIdx+'|'+Math.round(s*4)+'|'+(hatOn||'')+'|'+(riderMood||'')+'|'+(blink?1:0)+'|'+(save.settings.shapes?1:0)+(save.settings.cb?1:0)+(isVip(seed)?1:0)+'|'+riderStyle;
+ const ph=(seed||0)*1.37,blink=bob&&((t*0.7+ph)%3.2)<0.09,key=seed+'|'+colIdx+'|'+Math.round(s*4)+'|'+(hatOn||'')+'|'+(riderMood||'')+'|'+(blink?1:0)+'|'+(save.settings.shapes?1:0)+(save.settings.cb?1:0)+(isVip(seed)?1:0)+'|'+riderStyle+(save.settings.easy?'E':'');
  let sp=sprC.get(key);
  if(!sp){if(sprC.size>1400)sprC.clear();const k=dpr*1.25,w=Math.ceil(s*1.8*k),h=Math.ceil(s*2.1*k),c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),old=cx;cx=g;g.setTransform(k,0,0,k,w/2,s*1.45*k);try{drawPersonRaw(0,0,s,colIdx,blink?0.0001+(3.2-ph%3.2)/0.7:0,false,seed,blink)}finally{cx=old}sp={c,w:w/k,h:h/k,oy:s*1.45};sprC.set(key,sp)}
  const yy=bob?Math.sin(t*4+ph)*s*0.035:0;
@@ -1939,6 +1954,7 @@ function drawPerson(x,y,s,colIdx,t,bob,seed){
 function drawPersonRaw(x,y,s,colIdx,t,bob,seed,forceBlink){
  const v=pvar(seed==null?Math.abs(Math.round(x)):seed),c=colIdx===-2?MYST:colIdx<0?null:COL[colIdx];
  const ph=(seed||0)*1.37;const yy=y+(bob?Math.sin(t*4+ph)*s*0.035:0);const bw=v.bw,bh=v.bh;
+ if(save.settings.easy)return drawEasyPerson(x,y,yy,s,c,colIdx);
  cx.save();cx.lineJoin='round';
  const RS=riderStyle,fillC=c?c.c:null;let rbow=null;if(!c){rbow=cx.createLinearGradient(x-s*0.3,0,x+s*0.3,0);COL.forEach((k,i)=>rbow.addColorStop(i/7,k.c))}const cc=c?c.c:rbow,cd=c?(c.dd||c.d):'#6a3fc0';
  if(RS===4){cx.fillStyle=cc;cx.strokeStyle=INK;cx.lineWidth=Math.max(1.2,s*0.045);cx.beginPath();cx.ellipse(x,y+s*0.46,s*0.44,s*0.13,0,0,7);cx.fill();cx.stroke()}
@@ -1980,6 +1996,37 @@ function drawPersonRaw(x,y,s,colIdx,t,bob,seed,forceBlink){
  if(hatOn&&hatOn!=='none'&&!isVip(seed))drawHat(hatOn,x,ty-s*0.16,s*0.2,seed||0);
  cx.restore();
 }
+
+// ===== Easy visual mode: chunky glossy buses and plain one-color riders (original art) =====
+function drawEasyBus(px,py,ang,Lp,W,col,opt){
+ cx.save();cx.translate(px,py);cx.rotate(ang);
+ const hl=Lp/2,hw=W/2,r=Math.min(W*0.3,Lp*0.3),edge=col.dd||col.d,GL='#d4f1ff',GD='#86b9de';
+ if(opt.glow){cx.fillStyle='rgba(255,255,255,'+(opt.glowA||0.6)+')';rr(-hl-W*0.16,-hw-W*0.16,Lp+W*0.32,W*1.32,r+W*0.16);cx.fill()}
+ cx.fillStyle='rgba(30,55,100,.2)';rr(-hl+W*0.03,-hw+W*0.13,Lp,W,r);cx.fill();
+ cx.fillStyle='#2a2f3d';const wl=Math.min(W*0.42,Lp*0.22),ww=W*0.2,ax=Lp>W*2.6?[-hl+Lp*0.19,hl-Lp*0.2]:[-hl+Lp*0.27,hl-Lp*0.27];
+ for(const a of ax)for(const sd of[-1,1]){rr(a-wl/2,sd*hw-ww/2,wl,ww,ww*0.45);cx.fill()}
+ cx.fillStyle=opt.flash?'#ffffff':col.c;rr(-hl,-hw,Lp,W,r);cx.fill();cx.lineWidth=Math.max(2,W*0.075);cx.strokeStyle=edge;cx.stroke();
+ const x0=-hl+W*0.16,x1=hl-W*0.46,span=x1-x0;
+ if(span>W*0.3){const n=Math.max(1,Math.round(span/(W*0.6))),sw=span/n;
+  for(const sd of[-1,1])for(let i=0;i<n;i++){const wx=x0+i*sw+sw*0.07,wy=sd<0?-hw+W*0.08:hw-W*0.27;cx.fillStyle='#2f4d7a';rr(wx,wy,sw*0.86,W*0.19,W*0.06);cx.fill();cx.fillStyle='rgba(255,255,255,.45)';rr(wx+sw*0.1,wy+W*0.04,sw*0.25,W*0.05,W*0.025);cx.fill()}}
+ const rw=Math.max(W*0.2,Lp-W*0.62);cx.fillStyle=col.l||col.c;rr(-hl+W*0.13,-hw+W*0.29,rw,W*0.42,W*0.14);cx.fill();
+ cx.fillStyle='rgba(255,255,255,.6)';rr(-hl+W*0.2,-hw+W*0.33,rw*0.62,W*0.07,W*0.035);cx.fill();
+ cx.fillStyle='#2f4d7a';rr(hl-W*0.38,-hw+W*0.12,W*0.26,W*0.76,W*0.11);cx.fill();
+ cx.fillStyle='rgba(255,255,255,.8)';rr(hl-W*0.33,-hw+W*0.2,W*0.06,W*0.3,W*0.03);cx.fill();
+ cx.fillStyle='#fff6c2';for(const sd of[-1,1]){cx.beginPath();cx.arc(hl-W*0.07,sd*hw*0.64,W*0.065,0,7);cx.fill()}
+ if(!opt.noArrow){if(opt.back){cx.save();cx.rotate(Math.PI);drawDirArrow(Lp,W,col);cx.restore()}else drawDirArrow(Lp,W,col)}
+ cx.restore()}
+function drawEasyPerson(x,y,yy,s,c,colIdx){
+ cx.save();let fill;if(c)fill=c.c;else{fill=cx.createLinearGradient(x-s*0.2,0,x+s*0.2,0);COL.forEach((k,i)=>fill.addColorStop(i/7,k.c))}
+ const edge=c?(c.dd||c.d):'#5a2aa3';
+ cx.fillStyle='rgba(30,55,100,.18)';cx.beginPath();cx.ellipse(x,y+s*0.47,s*0.25,s*0.07,0,0,7);cx.fill();
+ cx.fillStyle=fill;cx.strokeStyle=edge;cx.lineWidth=Math.max(1.2,s*0.06);cx.lineJoin='round';
+ rr(x-s*0.2,yy-s*0.06,s*0.4,s*0.52,[s*0.2,s*0.2,s*0.11,s*0.11]);cx.fill();cx.stroke();
+ cx.beginPath();cx.arc(x,yy-s*0.28,s*0.19,0,7);cx.fill();cx.stroke();
+ cx.fillStyle='rgba(255,255,255,.6)';cx.beginPath();cx.ellipse(x-s*0.07,yy-s*0.35,s*0.06,s*0.045,-0.5,0,7);cx.fill();
+ cx.fillStyle='rgba(255,255,255,.35)';rr(x-s*0.13,yy-s*0.01,s*0.06,s*0.26,s*0.03);cx.fill();
+ if(c&&save.settings.shapes&&s>15){const k_=save.settings.cb?1.7:1;cx.fillStyle='rgba(255,255,255,.95)';cx.beginPath();cx.arc(x,yy+s*0.2,s*0.085*k_,0,7);cx.fill();drawShape(colIdx===-2?'q':SHAPES[colIdx],x,yy+s*0.2,s*0.06*k_,c.dd||c.d)}
+ cx.restore()}
 // Top-down vehicles. Local frame: +x is the front.
 function carVariant(c){if(c.variant)return c.variant;const h=((c.id+3)*2654435761+c.color*97)>>>0;if(c.len===1)return['taxi','bubble','mini'][h%3];if(c.len===3)return['bus','coach','tram','camper','limo'][h%5];return['sedan','hatch','sport','pickup','van','beetle','jeep'][h%7]}
 function glass(x,y,w,h,r){const g=cx.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,'#3a4d77');g.addColorStop(0.55,'#22304f');g.addColorStop(1,'#4b6496');cx.fillStyle=g;rr(x,y,w,h,r);cx.fill();cx.fillStyle='rgba(255,255,255,.28)';rr(x+w*0.15,y+h*0.12,Math.max(1,w*0.22),h*0.76,r*0.5);cx.fill()}
@@ -1993,13 +2040,14 @@ function drawVehicle(c,px,py,ang,Lp,W,col,opt){
  const F=opt.finish||finOn,mood=opt.mood||carMood;
  if(cx!==mainCx||opt.glow||opt.flash||F==='gloss'||mood==='sleep'||Lp>W*6)return drawVehicleRaw(c,px,py,ang,Lp,W,col,opt);
  const blink=!opt.noFace&&!mood&&((now()+((c.id||0)*0.731))%4.3)<0.13,v=opt.variant||carVariant(c);
- const key='v|'+v+'|'+col.c+(col.dd||'')+'|'+Math.round(Lp*4)+'|'+Math.round(W*4)+'|'+(F||'')+'|'+(mood||'')+'|'+(blink?1:0)+(opt.back?1:0)+(opt.noArrow?1:0)+(opt.noFace?1:0);
+ const key='v|'+v+'|'+col.c+(col.dd||'')+'|'+Math.round(Lp*4)+'|'+Math.round(W*4)+'|'+(F||'')+'|'+(mood||'')+'|'+(blink?1:0)+(opt.back?1:0)+(opt.noArrow?1:0)+(opt.noFace?1:0)+(save.settings.easy?'E':'');
  let sp=sprC.get(key);
  if(!sp){if(sprC.size>1400)sprC.clear();const k=dpr,m=W*0.5,w=Lp+m*2,h=W+m*2,c2=document.createElement('canvas');c2.width=Math.ceil(w*k);c2.height=Math.ceil(h*k);const g=c2.getContext('2d'),old=cx;cx=g;g.setTransform(k,0,0,k,w*k/2,h*k/2);
   try{drawVehicleRaw({id:blink?-1:c.id,len:c.len,cap:c.cap,_v:v},0,0,0,Lp,W,col,Object.assign({},opt,{variant:v,mood:mood,finish:F||'none',_blink:blink}))}finally{cx=old}sp={c:c2,w,h};sprC.set(key,sp)}
  cx.save();cx.translate(px,py);cx.rotate(ang);cx.drawImage(sp.c,-sp.w/2,-sp.h/2,sp.w,sp.h);cx.restore()}
 function drawVehicleRaw(c,px,py,ang,Lp,W,col,opt){
  const v=opt.variant||carVariant(c);
+ if(save.settings.easy&&v!=='ferry')return drawEasyBus(px,py,ang,Lp,W,col,opt);
  cx.save();cx.translate(px,py);cx.rotate(ang);
  const hl=Lp/2,hw=W/2;let r=Math.min(W*0.34,Lp*0.32);if(v==='beetle'||v==='bubble')r=Math.min(W*0.5,Lp*0.48);if(v==='jeep')r=W*0.16;
  if(opt.glow){cx.fillStyle='rgba(255,255,255,'+(opt.glowA||0.6)+')';rr(-hl-W*0.18,-hw-W*0.18,Lp+W*0.36,W*1.36,r+W*0.18);cx.fill()}
@@ -2114,13 +2162,15 @@ function frameInner(){
  for(let i=0;i<fx.length;i++)if(fx[i].at<=t){const f=fx[i];fx.splice(i--,1);f.fn()}
  let sox=0,soy=0;if(t<shakeUntil){const k=(shakeUntil-t)/0.3;sox=(Math.random()-0.5)*2*shakeMag*Math.min(1,k);soy=(Math.random()-0.5)*2*shakeMag*Math.min(1,k)}
  cx.setTransform(dpr,0,0,dpr,sox*dpr,soy*dpr);
- const T=theme();
+ const T=theme(),EZ=!!save.settings.easy;
  cx.fillStyle=T.grass;cx.fillRect(-30,-30,cw+60,ch+60);
+ if(!EZ){
  // ground texture
  cx.fillStyle=T.grass2;cx.beginPath();for(const d of decor){if(d.k<0.5){const r_=cell*0.35*d.s;cx.moveTo(d.u*cw+r_,d.v*ch);cx.arc(d.u*cw,d.v*ch,r_,0,7)}}cx.fill();
  if(T.night){for(const d of decor){const a=0.4+0.4*Math.sin(t*1.5+d.k*20);cx.fillStyle='rgba(255,255,230,'+a+')';cx.beginPath();cx.arc(d.v*cw,d.u*ch,1.2+d.s,0,7);cx.fill()}}
  if(!T.night){cx.save();cx.fillStyle='rgba(20,30,40,.06)';for(let i=0;i<3;i++){const X=((t*14+i*(cw+500)/3)%(cw+500))-250,Y=ch*(0.12+0.34*i)+Math.sin(t*0.2+i)*20,R=cell*(2.2+i*0.4);cx.beginPath();cx.ellipse(X,Y,R*1.3,R*0.6,0,0,7);cx.ellipse(X+R*0.8,Y-R*0.25,R*0.8,R*0.5,0,0,7);cx.ellipse(X-R*0.9,Y+R*0.1,R*0.7,R*0.4,0,0,7);cx.fill()}cx.restore()}
  drawSceneBack(fxOn('scene')?t:0);
+ }
  // sidewalk + stops
  const walkTop=topY,walkH=bayY+bayH+cell*0.2-topY;
  cx.fillStyle=T.walk;rr(Math.max(6,bayX0-cell*0.25),walkTop,Math.min(cw-12,cw-2*bayX0+cell*0.5),walkH,cell*0.35);cx.fill();
@@ -2129,7 +2179,7 @@ function frameInner(){
  {const key=[cw,ch,dpr,cell,lotX,lotY,L.w,L.h,T.road,T.lot,T.line].join('|');
   if(!lotC||lotC.key!==key){const m=8,X0=lotX-pad-m,Y0=lotY-pad-m,w=L.w*cell+pad*2+m*2,h=L.h*cell+pad*2+m*2,c=document.createElement('canvas');c.width=Math.ceil(w*dpr);c.height=Math.ceil(h*dpr);const g=c.getContext('2d'),old=cx;cx=g;g.setTransform(dpr,0,0,dpr,-X0*dpr,-Y0*dpr);
    try{cx.fillStyle=T.road;rr(lotX-pad,lotY-pad,L.w*cell+pad*2,L.h*cell+pad*2,cell*0.5);cx.fill();
-   cx.strokeStyle=INK;cx.lineWidth=Math.max(3,cell*0.08);cx.stroke();
+   cx.strokeStyle=T.edge||INK;cx.lineWidth=Math.max(3,cell*0.08);cx.stroke();
    cx.fillStyle=T.lot;rr(lotX,lotY,L.w*cell,L.h*cell,cell*0.18);cx.fill();
    cx.strokeStyle=T.line;cx.lineWidth=1.5;cx.setLineDash([cell*0.16,cell*0.12]);cx.beginPath();
    for(let x=1;x<L.w;x++){cx.moveTo(lotX+x*cell,lotY+cell*0.1);cx.lineTo(lotX+x*cell,lotY+L.h*cell-cell*0.1)}
@@ -2137,8 +2187,8 @@ function frameInner(){
    lotC={key,c,X0,Y0,w,h}}
   cx.drawImage(lotC.c,lotC.X0,lotC.Y0,lotC.w,lotC.h)}
  // trees around
- if(T.beach||themeKey()==='harbor'){cx.strokeStyle='rgba(255,255,255,.6)';cx.lineWidth=2;for(let k=0;k<3;k++){cx.beginPath();const yy=ch-12-k*10;for(let x=0;x<=cw;x+=8)cx.lineTo(x,yy+Math.sin(x*0.05+t*1.2+k)*3);cx.stroke()}}
- if(!T.beach||(SC[themeKey()]||{}).treeK==='palm')for(let i=0;i<decor.length;i++){const d=decor[i];if(d.k<0.75)continue;const side=i%2;const x=side?lotX-pad-cell*0.6:lotX+L.w*cell+pad+cell*0.6;const y=lotY+d.v*L.h*cell;if(x<cell*0.4||x>cw-cell*0.4)continue;drawTree(x,y,cell*0.8*d.s)}
+ if(!EZ&&(T.beach||themeKey()==='harbor')){cx.strokeStyle='rgba(255,255,255,.6)';cx.lineWidth=2;for(let k=0;k<3;k++){cx.beginPath();const yy=ch-12-k*10;for(let x=0;x<=cw;x+=8)cx.lineTo(x,yy+Math.sin(x*0.05+t*1.2+k)*3);cx.stroke()}}
+ if(!EZ&&(!T.beach||(SC[themeKey()]||{}).treeK==='palm'))for(let i=0;i<decor.length;i++){const d=decor[i];if(d.k<0.75)continue;const side=i%2;const x=side?lotX-pad-cell*0.6:lotX+L.w*cell+pad+cell*0.6;const y=lotY+d.v*L.h*cell;if(x<cell*0.4||x>cw-cell*0.4)continue;drawTree(x,y,cell*0.8*d.s)}
  // canal for ferries
  if(L.water){for(let i=0;i<L.w*L.h;i++){if(!L.water[i])continue;const x0=lotX+(i%L.w)*cell,y0=lotY+((i/L.w)|0)*cell;const g=cx.createLinearGradient(x0,0,x0+cell,0);g.addColorStop(0,'#3d9be0');g.addColorStop(1,'#2a7fc4');cx.fillStyle=g;cx.fillRect(x0-1,y0-1,cell+2,cell+2);
    cx.strokeStyle='rgba(255,255,255,.45)';cx.lineWidth=Math.max(1.5,cell*0.04);for(let k=0;k<2;k++){const yy=y0+cell*(0.32+k*0.38);cx.beginPath();for(let xx=0;xx<=cell;xx+=cell/8)cx.lineTo(x0+xx,yy+Math.sin((xx/cell)*Math.PI*2+t*2+k*2+i)*cell*0.05);cx.stroke()}}
@@ -2175,7 +2225,7 @@ function frameInner(){
    cx.font='800 '+Math.max(11,cell*0.22)+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='top';cx.fillStyle=n?'#1f6e43':'#4f5568';cx.fillText(n?'\u00d7'+n:'0 left',px,py+r_*1.25);continue}
   if(b===L.towBay){cx.save();cx.fillStyle='rgba(232,72,75,.2)';rr(x,y,bayW,bayH,cell*0.22);cx.fill();cx.strokeStyle='#e8484b';cx.lineWidth=3;cx.stroke();cx.font='900 '+Math.max(10,cell*0.2)+'px Nunito, system-ui, sans-serif';cx.textAlign='right';cx.textBaseline='top';cx.fillStyle='#c8202a';cx.fillText('TOW',x+bayW-5,y+4);
    if(S.bays[b]&&S.tzc>0){const rx=x+bayW-cell*0.25,ry=y+bayH-cell*0.25,rr_=Math.max(9,cell*0.2);cx.fillStyle='#e8484b';cx.beginPath();cx.arc(rx,ry,rr_,0,7);cx.fill();cx.fillStyle='#fff';cx.textAlign='center';cx.textBaseline='middle';cx.font='900 '+(rr_*1.2)+'px Nunito, system-ui, sans-serif';cx.fillText(String(S.tzc),rx,ry+1)}cx.restore()}
-  if(save.equip.decor!=='none')drawDecor(save.equip.decor,x,y,bayW,bayH,t,b);
+  if(save.equip.decor!=='none'&&!save.settings.easy)drawDecor(save.equip.decor,x,y,bayW,bayH,t,b);
   cx.fillStyle=T.bayLine;cx.font='800 '+Math.max(10,cell*0.22)+'px Nunito, system-ui, sans-serif';cx.textAlign='left';cx.textBaseline='top';cx.fillText(String(b+1),x+5,y+4)}
  // cars in lot
  finOn=save.equip.finish;
@@ -2303,7 +2353,7 @@ function frameInner(){
   if(fxOn('spark')){cx.save();cx.rotate(t*0.6);cx.fillStyle='rgba(255,236,140,.35)';for(let k=0;k<12;k++){cx.rotate(Math.PI/6);cx.beginPath();cx.moveTo(0,0);cx.lineTo(w*0.9,-w*0.12);cx.lineTo(w*0.9,w*0.12);cx.closePath();cx.fill()}cx.restore()}
   comicBurst(0,0,w*0.62,fsz*1.25,'#ffd02b');cx.lineWidth=fsz*0.3;cx.strokeStyle=INK;cx.strokeText(stamp.txt,0,0);
   const g=cx.createLinearGradient(-w/2,0,w/2,0);['#ef5a5a','#f68a3c','#f5c445','#45c07f','#4a8cf0','#9a6bf0'].forEach((k,i)=>g.addColorStop(i/5,k));cx.fillStyle=g;cx.fillText(stamp.txt,0,0);cx.restore()}}
- drawAnimals(t);
+ if(!save.settings.easy)drawAnimals(t);
  const ovOpen=anyOverlay();{const te=$('tut'),hid=!tut||ovOpen;if(te.hidden!==hid)te.hidden=hid}
  if(rushOn&&!ended&&!ovOpen&&!document.hidden&&L&&S.dep>0){rushLeft-=Math.min(0.1,dt);if(Math.ceil(rushLeft)!==rushShown){rushShown=Math.ceil(rushLeft);updateHUD();if(rushLeft<=10&&rushLeft>0)sfx('ui')}if(rushLeft<=0){rushLeft=0;timeUp=true;ended=true;endToken++;showLose()}}
  if(tut&&!ovOpen)drawTut(t);
@@ -2321,7 +2371,7 @@ function seatPos(x,y,lenB,thB,cap,i){const rows=cap<=3?1:2,cols=Math.ceil(cap/ro
 function seatsDraw(x,y,lenB,thB,cap,v,col,t,cheer){const r=Math.min(thB*0.17,(lenB+thB*0.25)/Math.ceil(cap/(cap<=3?1:2))*0.36);
  for(let i=0;i<cap;i++){const[sx,sy]=seatPos(x,y,lenB,thB,cap,i);const b=v.boards[i];
   if(b!==undefined&&b<=t){const k=clamp01((t-b)/0.28),sc=b<0?1:easeOutBack(k);const q=v.boardQ?v.boardQ[i]:null;const pv=pvar(q==null?(v.car*7+i):q);
-   const jump=cheer?-Math.abs(Math.sin(t*14+i))*r*0.6:0;cx.save();cx.translate(sx,sy+jump);cx.scale(sc,sc);drawHead(0,0,r*1.05,pv,false);cx.restore()}
+   const jump=cheer?-Math.abs(Math.sin(t*14+i))*r*0.6:0;cx.save();cx.translate(sx,sy+jump);cx.scale(sc,sc);if(save.settings.easy){const ec=col&&col.c?col:{c:'#9a6bf0',d:'#5a2aa3'};cx.fillStyle=ec.c;cx.strokeStyle=ec.dd||ec.d;cx.lineWidth=Math.max(1.2,r*0.22);cx.beginPath();cx.arc(0,0,r*0.95,0,7);cx.fill();cx.stroke();cx.fillStyle='rgba(255,255,255,.6)';cx.beginPath();cx.arc(-r*0.3,-r*0.32,r*0.24,0,7);cx.fill()}else drawHead(0,0,r*1.05,pv,false);cx.restore()}
   else{cx.fillStyle='rgba(0,0,0,.22)';cx.beginPath();cx.arc(sx,sy,r*0.8,0,7);cx.fill();cx.strokeStyle='rgba(255,255,255,.35)';cx.lineWidth=1;cx.stroke()}}}
 
 function portalPair(){const o=[];if(!L.portal)return o;for(let i=0;i<L.portal.length;i++)if(L.portal[i]>=0)o.push([i%L.w,(i/L.w)|0]);return o}
@@ -3021,7 +3071,7 @@ const seasonCache={};
 function seasoned(k,s){const key=k+':'+s;if(seasonCache[key])return seasonCache[key];const B=THEMES[k],S_=SEASONS[s],m=c=>mixHex(c,S_.mix,S_.a);
  const T=Object.assign({},B,{grass:m(B.grass),grass2:m(B.grass2),walk:m(B.walk),lot:S_.night?mixHex(B.lot,'#1b2140',0.5):B.lot,road:S_.night?mixHex(B.road,'#1b2140',0.5):B.road,tree:S_.tree||(S_.night?mixHex(B.tree,'#1d2650',0.45):B.tree),tree2:S_.tree2||B.tree2,season:s,snow:s==='winter'||B.snow,night:!!S_.night||B.night});return seasonCache[key]=T}
 function sceneKey(){return themeKey()}
-function sceneTheme(){const k=themeKey(),B=THEMES[k]||THEMES.city;if(save.settings.theme==='auto'&&mode&&mode.type==='level'){const s=seasonOf(districtOf(mode.n));if(s)return seasoned(k,s)}return B}
+function sceneTheme(){if(save.settings.easy)return THEMES.easy;const k=themeKey(),B=THEMES[k]||THEMES.city;if(save.settings.theme==='auto'&&mode&&mode.type==='level'){const s=seasonOf(districtOf(mode.n));if(s)return seasoned(k,s)}return B}
 function sceneInfo(){const k=themeKey(),T=theme(),I=SC[k]||SC.city;let animals=I.animals.slice(),weather=I.weather;if(T.season){const S_=SEASONS[T.season];weather=S_.weather;if(!animals.includes(S_.add))animals.push(S_.add)}
  const hol=holiday();if(hol==='halloween'&&!animals.includes('bats'))animals.push('bats');return{k,T,I,animals,weather}}
 // ---- holidays (by the phone's date) ----
