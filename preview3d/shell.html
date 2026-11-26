@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Parkle 3D Preview</title>
+<style>
+:root{--ink:#1d2330;--panel:rgba(255,255,255,.88);--chip:#ffffff;--accent:#ff6b4a;--muted:#5b6475;--bg:#bfe6f7}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ink:#f2f4f8;--panel:rgba(24,28,38,.86);--chip:#2a3040;--muted:#aab3c5;--bg:#1b2442}}
+:root[data-theme="dark"]{--ink:#f2f4f8;--panel:rgba(24,28,38,.86);--chip:#2a3040;--muted:#aab3c5;--bg:#1b2442}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);font-family:Nunito,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);-webkit-tap-highlight-color:transparent;user-select:none}
+#stage,#stage canvas{position:fixed;inset:0;display:block;touch-action:none}
+#hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 10px) 16px 8px;display:flex;align-items:center;gap:8px;pointer-events:none}
+.chip{background:var(--panel);backdrop-filter:blur(8px);border-radius:14px;padding:7px 12px;font-weight:800;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.12);white-space:nowrap}
+.chip small{display:block;font-weight:700;font-size:11px;color:var(--muted);letter-spacing:.02em}
+#hud .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#tag{position:fixed;top:calc(env(safe-area-inset-top) + 64px);left:16px;font-size:11px;font-weight:800;background:var(--accent);color:#fff;padding:3px 8px;border-radius:8px;pointer-events:none}
+#fps{position:fixed;top:calc(env(safe-area-inset-top) + 64px);right:16px;font-size:11px;font-weight:800;background:var(--panel);padding:3px 8px;border-radius:8px;pointer-events:none}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:8px 16px calc(env(safe-area-inset-bottom) + 12px);display:flex;gap:6px;justify-content:center}
+#bar button{flex:1 1 0;max-width:110px;padding-left:4px;padding-right:4px}
+#bar button,.sheet button,#ov button{font:inherit;font-weight:800;font-size:14px;border:0;border-radius:14px;padding:10px 11px;background:var(--panel);color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.14);backdrop-filter:blur(8px);min-width:56px}
+#bar button:active{transform:scale(.95)}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 74px);transform:translate(-50%,20px);opacity:0;transition:.25s;background:#1d2330;color:#fff;font-weight:800;font-size:14px;padding:10px 14px;border-radius:14px;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,14,24,.35);opacity:0;pointer-events:none;transition:.3s;padding:16px}
+#ov.on{opacity:1;pointer-events:auto}
+#ov .card{background:var(--panel);backdrop-filter:blur(12px);border-radius:24px;padding:22px 22px 18px;text-align:center;max-width:320px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+#ov h2{margin:0 0 6px;font-size:26px}#ov p{margin:0 0 16px;color:var(--muted);font-weight:700}
+#ov button{background:var(--accent);color:#fff;padding:12px 22px;font-size:16px}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--panel);backdrop-filter:blur(14px);border-radius:22px 22px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px);transform:translateY(105%);transition:.3s;box-shadow:0 -8px 30px rgba(0,0,0,.2)}
+.sheet.on{transform:none}.sheet h3{margin:0 0 4px}.sheet p{margin:0 0 12px;color:var(--muted);font-weight:700;font-size:13px}
+#lvGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:8px;margin-bottom:12px}
+#lvGrid button{padding:10px 0;min-width:0}#lvGrid button.cur{background:var(--accent);color:#fff}
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;background:var(--bg)}
+</style></head><body>
+<div id="loading">Loading 3D…</div>
+<div id="stage"></div>
+<div id="hud"><div class="chip"><small>LEVEL</small><span id="lvl">1</span></div><div class="chip grow"><small>TRICKS</small><span id="feats"></span></div><div class="chip"><small>RIDERS</small><span id="left">0</span></div><div class="chip"><small>MOVES</small><span id="moves">0</span></div></div>
+<div id="tag">3D PREVIEW</div><div id="fps"></div>
+<div id="bar"><button id="bLv">Levels</button><button id="bRestart">Restart</button><button id="bView">3D</button><button id="bTheme">Day</button><button id="bQ">HD</button><button id="bSnd">♪</button></div>
+<div id="toast"></div>
+<div id="ov"><div class="card"><h2 id="ovH"></h2><p id="ovP"></p><button id="ovB"></button></div></div>
+<div class="sheet" id="lvSheet"><h3>Pick a level</h3><p>Levels 1 to 32 use the real Parkle generator. Later tricks are not built in 3D yet.</p><div id="lvGrid"></div><button id="lvClose">Close</button></div>
+<script>/*ENGINE*/</script>
+<script type="text/plain" id="threeSrc">/*THREE*/</script>
+<script type="module">/*MAIN*/</script>
+</body></html>
