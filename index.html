@@ -1544,7 +1544,7 @@ V3.nightLights=function(){const n=V3.isNight;V3.night.visible=n;if(!n)return;con
 V3.pick=function(sx,sy){const T=V3.T,v=new T.Vector2(sx/cw*2-1,-(sy/ch)*2+1);V3.ray.setFromCamera(v,V3.cam);
  if(V3.carObj&&V3.carObjL===L){const hs=[];for(const k in V3.carObj){const o=V3.carObj[k];if(o.g.visible&&!S.gone[+k])hs.push(o.hit)}const h=V3.ray.intersectObjects(hs,false);if(h.length){const id=h[0].object.userData.car,m=L.cells[id][Math.floor(L.cells[id].length/2)];return[gx(m[0]),gy(m[1])]}}
  // nothing under the finger: take the nearest car on screen, so a tap on a badge, a gap or a car's edge still counts
- if(V3.carObj&&V3.carObjL===L){let best=-1,bd=Math.max(30,cell*0.8);const q=new T.Vector3();for(const k in V3.carObj){const o=V3.carObj[k];if(!o.g.visible||S.gone[+k])continue;q.set(o.g.position.x,0.4,o.g.position.z*V3.Zs).project(V3.cam);const d=Math.hypot((q.x+1)/2*cw-sx,(1-q.y)/2*ch-sy);if(d<bd){bd=d;best=+k}}
+ if(V3.carObj&&V3.carObjL===L){let best=-1,bd=Math.max(44,cell*1.15);const q=new T.Vector3();for(const k in V3.carObj){const o=V3.carObj[k];if(!o.g.visible||S.gone[+k])continue;q.set(o.g.position.x,0.4,o.g.position.z*V3.Zs).project(V3.cam);const d=Math.hypot((q.x+1)/2*cw-sx,(1-q.y)/2*ch-sy);if(d<bd){bd=d;best=+k}}
   if(best>=0){const m=L.cells[best][Math.floor(L.cells[best].length/2)];return[gx(m[0]),gy(m[1])]}}
  const p=new T.Vector3();if(!V3.ray.ray.intersectPlane(V3.plane,p))return[sx,sy];return[p.x*cell+cw/2,p.z/V3.Zs*cell+ch/2]};
 
@@ -1664,7 +1664,7 @@ function makeDecor(){
 // ---------- input ----------
 cv.addEventListener('pointerdown',e=>{
  ensureAudio();if(ended||anyOverlay())return;
- const r=cv.getBoundingClientRect();let x=e.clientX-r.left,y=e.clientY-r.top;if(V3.on){const q_=V3.pick(x,y);x=q_[0];y=q_[1]}
+ const r=cv.getBoundingClientRect();let x=e.clientX-r.left,y=e.clientY-r.top;const rx_=x,ry_=y;if(V3.on){const q_=V3.pick(x,y);x=q_[0];y=q_[1]}
  if(ringC&&Math.pow((x-ringC[0])/(ringRX+laneW*0.5),2)+Math.pow((y-ringC[1])/(ringR+laneW*0.5),2)<1){ringHold=true;if(!save.seen.ringTip){save.seen.ringTip=1;persist();toast('Keep holding to make the riders walk faster.')}return}
  if(y>=bayY-4&&y<=bayY+bayH+4){const b=Math.floor((x-bayX0)/(bayW+bayGap));if(b>=0&&b<slotCount()){
   if(target==='sweep'){if(S.bays[b]){const k=target;target=null;doPwr(k,b)}else toast('Tap a stop that has a car in it.');return}
@@ -1676,15 +1676,15 @@ cv.addEventListener('pointerdown',e=>{
   let best=-1,bd=0.75;for(const c of L.cars){if(S.gone[c.id])continue;for(const[cx_,cy_]of L.cells[c.id]){const d=Math.hypot((x-lotX)/cell-(cx_+0.5),(y-lotY)/cell-(cy_+0.5));if(d<bd){bd=d;best=c.id}}}
   id=best}
  if(target&&target!=='sweep'){if(id>=0){const k=target;target=null;doPwr(k,id)}else{target=null;toast('Power-up cancelled.')}return}
- if(id>=0){press={id,x,y,shown:false};clearTimeout(pressT);pressT=setTimeout(()=>{if(press&&press.id===id){press.shown=true;showPreview(id)}},320)}
+ if(id>=0){press={id,x:rx_,y:ry_,shown:false,t0:e.timeStamp};clearTimeout(pressT);pressT=setTimeout(()=>{if(press&&press.id===id){press.shown=true;showPreview(id)}},320)}
 });
 let press=null,pressT=0,preview=null,blockMark=null;
 function showPreview(id){const c=L.cars[id],occ=occOf(L,S),w=why(L,S,occ,c);const tr=w.tr||tracePath(L,occ,effCar(L,S,c),S.dep,S);preview={id,path:tr.path,ok:w.k==='ok',k:w.k,d:tr.d,block:tr.block,t0:now()};buzz(6);sfx('ui');
  if(w.k==='frozen')toast('Frozen: '+(c.frozen-S.dep)+' more car'+(c.frozen-S.dep>1?'s':'')+' must leave first.');else if(w.k==='locked')toast('Locked until the matching key car leaves.');else toast(w.k==='ok'?'Clear road. Let go to keep it parked, tap to drive.':'Blocked. Let go to keep it parked.')}
-cv.addEventListener('pointerup',e=>{clearTimeout(pressT);if(!press)return;const p_=press;press=null;if(p_.shown){preview=null;return}if(!ended&&!anyOverlay())tapCar(p_.id)});
+cv.addEventListener('pointerup',e=>{clearTimeout(pressT);if(!press)return;const p_=press;press=null;if(p_.shown&&e.timeStamp-p_.t0>=380){preview=null;return}preview=null;if(!ended&&!anyOverlay())tapCar(p_.id)});
 ['pointerup','pointercancel','pointerleave'].forEach(ev_=>cv.addEventListener(ev_,()=>{ringHold=false}));
 cv.addEventListener('pointercancel',()=>{clearTimeout(pressT);press=null;preview=null});
-cv.addEventListener('pointermove',e=>{if(!press||press.shown)return;const r=cv.getBoundingClientRect();if(Math.hypot(e.clientX-r.left-press.x,e.clientY-r.top-press.y)>cell*0.6){clearTimeout(pressT);press=null}});
+cv.addEventListener('pointermove',e=>{if(!press||press.shown)return;const r=cv.getBoundingClientRect();if(Math.hypot(e.clientX-r.left-press.x,e.clientY-r.top-press.y)>Math.max(cell*0.6,26)){clearTimeout(pressT);press=null}});
 function drawPreview(t){if(!preview)return;const c=L.cars[preview.id],cs=L.cells[preview.id],ec=effCar(L,S,c);const pts=[[gx(ec.x),gy(ec.y)]].concat(preview.path.map(([x,y])=>[gx(x),gy(y)]));
  if(preview.ok){const l=pts[pts.length-1];pts.push([l[0]+DX[preview.d]*cell*0.9,l[1]+DY[preview.d]*cell*0.9])}
  const col=preview.ok?'#45c07f':'#e8484b';cx.save();cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle='rgba(0,0,0,.35)';cx.lineWidth=cell*0.26;cx.beginPath();pts.forEach((p,i)=>i?cx.lineTo(p[0],p[1]):cx.moveTo(p[0],p[1]));cx.stroke();
@@ -2013,7 +2013,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270123';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270151';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
