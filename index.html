@@ -1453,9 +1453,11 @@ V3.fxLayer=function(){V3.rec=false;if(!V3.on)return;const o=V3.oc,od=Math.min(2,
 V3.toScreen=function(x,y){const w=V3.W(x,y),v=V3.tmpV.set(w[0],0,w[1]*V3.Zs).project(V3.cam);return[(v.x+1)/2*cw,(1-v.y)/2*ch]};
 V3.end=function(){V3.rec=false;if(V3.saveCx){cx=V3.saveCx;V3.saveCx=null}
  if(!V3.on||!L||!cw)return;const T=V3.T;
- if(V3.k!==cw+'|'+ch+'|'+cell+'|'+lotY+'|'+(lowQ|0))V3.fit();
+ if(V3.k!==cw+'|'+ch+'|'+cell+'|'+lotY+'|'+(lowQ|0)+'|'+cv.width+'|'+cv.height)V3.fit();
  V3.tex.needsUpdate=true;V3.look();V3.syncCars();V3.syncInst();V3.nightLights();V3.R.render(V3.scene,V3.cam)};
-V3.fit=function(){const T=V3.T;V3.k=cw+'|'+ch+'|'+cell+'|'+lotY+'|'+(lowQ|0);const R=V3.R;
+V3.fit=function(){const T=V3.T;V3.k=cw+'|'+ch+'|'+cell+'|'+lotY+'|'+(lowQ|0)+'|'+cv.width+'|'+cv.height;const R=V3.R;
+ // a canvas texture keeps the size it was first uploaded at, so when the screen size changes (rotate, fold, system bars) it must be rebuilt or the ground shows an old layout under the new cars
+ if(V3.texW!==cv.width||V3.texH!==cv.height){if(V3.texW){const o=V3.tex;V3.tex=new T.CanvasTexture(cv);V3.tex.colorSpace=T.SRGBColorSpace;V3.tex.anisotropy=o.anisotropy;V3.tex.generateMipmaps=false;V3.tex.minFilter=T.LinearFilter;V3.ground.material.map=V3.tex;V3.ground.material.needsUpdate=true;o.dispose()}V3.texW=cv.width;V3.texH=cv.height}
  const q=lowQ|0;R.setPixelRatio(Math.min(window.devicePixelRatio||1,[2,1.5,1][q]));R.setSize(cw,ch,false);V3.gl.style.width=cw+'px';V3.gl.style.height=ch+'px';V3.oc.style.width=cw+'px';V3.oc.style.height=ch+'px';
  R.shadowMap.enabled=q<2;V3.sun.castShadow=q<2;V3.sun.shadow.mapSize.set(q?1024:2048,q?1024:2048);if(V3.sun.shadow.map){V3.sun.shadow.map.dispose();V3.sun.shadow.map=null}
  const W=cw/cell,H=ch/cell;V3.ground.scale.set(W,H,1);V3.shadow.scale.set(W+40,H+40,1);
@@ -2125,7 +2127,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270321';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270441';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -2792,7 +2794,7 @@ function drawLowBridge(x,y,s){cx.save();cx.fillStyle='rgba(60,50,40,.18)';cx.fil
  txtC(x,y,'LOW',s*0.22,'#ffffff');cx.restore()}
 function drawWorks(x,y,s,left,t){cx.save();const closed=left<=0;cx.fillStyle=closed?'#e98a15':'rgba(233,138,21,.25)';rr(x-s*0.44,y-s*0.44,s*0.88,s*0.88,s*0.1);cx.fill();cx.strokeStyle=INK;cx.lineWidth=Math.max(2,s*0.04);cx.stroke();
  cx.save();rr(x-s*0.44,y-s*0.1,s*0.88,s*0.2,s*0.04);cx.clip();cx.fillStyle='#ffffff';cx.fillRect(x-s*0.44,y-s*0.1,s*0.88,s*0.2);cx.fillStyle='#e8484b';for(let k=-3;k<4;k++){cx.beginPath();const x0=x+k*s*0.18;cx.moveTo(x0,y+s*0.1);cx.lineTo(x0+s*0.1,y-s*0.1);cx.lineTo(x0+s*0.19,y-s*0.1);cx.lineTo(x0+s*0.09,y+s*0.1);cx.closePath();cx.fill()}cx.restore();
- if(closed){cx.fillStyle='#ffd23f';cx.beginPath();cx.arc(x,y-s*0.28,s*0.07*(1+0.2*Math.sin(t*8)),0,7);cx.fill()}else txtC(x,y+s*0.28,String(left),s*0.26,'#ffffff');cx.restore()}
+ if(closed){cx.fillStyle='#ffd23f';cx.beginPath();cx.arc(x,y-s*0.28,s*0.07*(1+0.2*Math.sin(t*8)),0,7);cx.fill()}else{cx.fillStyle='#ffffff';cx.beginPath();cx.arc(x,y-s*0.27,s*0.17,0,7);cx.fill();cx.strokeStyle=INK;cx.lineWidth=Math.max(2,s*0.04);cx.stroke();cx.font='900 '+s*0.25+'px Nunito, system-ui, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle=INK;cx.fillText(String(left),x,y-s*0.255)}cx.restore()}
 function drawLight(x,y,s,ph,t){cx.save();cx.fillStyle='#2b2f3d';rr(x-s*0.17,y-s*0.42,s*0.34,s*0.84,s*0.1);cx.fill();cx.strokeStyle=INK;cx.lineWidth=Math.max(2,s*0.04);cx.stroke();
  const cols=['#e8484b','#f5b82e','#45c07f'],on=[2,1,0][ph];for(let k=0;k<3;k++){cx.fillStyle=k===on?cols[k]:'rgba(255,255,255,.12)';cx.beginPath();cx.arc(x,y-s*0.26+k*s*0.26,s*0.1,0,7);cx.fill();if(k===on){cx.fillStyle=cols[k]+'55';cx.beginPath();cx.arc(x,y-s*0.26+k*s*0.26,s*0.17,0,7);cx.fill()}}cx.restore()}
 function drawOil(x,y,s,t){cx.save();cx.fillStyle='#1d1a26';cx.beginPath();for(let k=0;k<=12;k++){const a=k/12*Math.PI*2,r=s*(0.34+0.06*Math.sin(k*2.3+1));cx.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r*0.8)}cx.closePath();cx.fill();
