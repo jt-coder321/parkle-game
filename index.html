@@ -1430,7 +1430,7 @@ V3.fit=function(){const T=V3.T;V3.k=cw+'|'+ch+'|'+cell+'|'+lotY+'|'+(lowQ|0);con
  const q=lowQ|0;R.setPixelRatio(Math.min(window.devicePixelRatio||1,[2,1.5,1][q]));R.setSize(cw,ch,false);V3.gl.style.width=cw+'px';V3.gl.style.height=ch+'px';V3.oc.style.width=cw+'px';V3.oc.style.height=ch+'px';
  R.shadowMap.enabled=q<2;V3.sun.castShadow=q<2;V3.sun.shadow.mapSize.set(q?1024:2048,q?1024:2048);if(V3.sun.shadow.map){V3.sun.shadow.map.dispose();V3.sun.shadow.map=null}
  const W=cw/cell,H=ch/cell;V3.ground.scale.set(W,H,1);V3.shadow.scale.set(W+40,H+40,1);
- const cam=V3.cam;cam.aspect=cw/ch;cam.updateProjectionMatrix();const el=58*Math.PI/180;
+ const cam=V3.cam;cam.aspect=cw/ch;cam.updateProjectionMatrix();const el=72*Math.PI/180;
  // fit what matters: the lot (near the camera) and the crowd and stops above it, not the empty margins
  const pad=cell*0.55,lb=V3.W(0,Math.min(ch,lotY+L.h*cell+pad+cell*0.15)),lt=V3.W(0,Math.max(0,topY-cell*0.1)),lx0=V3.W(Math.max(0,Math.min(lotX-pad,bayX0)-cell*0.15),0)[0],lx1=V3.W(Math.min(cw,Math.max(lotX+L.w*cell+pad,cw-bayX0)+cell*0.15),0)[0];
  const pts=[new T.Vector3(lx0,0,lb[1]),new T.Vector3(lx1,0,lb[1]),new T.Vector3(lx0,0.8,lb[1]),new T.Vector3(lx1,0.8,lb[1]),new T.Vector3(-W/2,0,lt[1]),new T.Vector3(W/2,0,lt[1])];
@@ -2013,7 +2013,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270151';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270228';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
