@@ -1509,7 +1509,8 @@ V3.syncInst=function(){const T=V3.T,M=V3.tmpM,Q=V3.tmpQ,P=V3.tmpV,Sc=V3.tmpS,C=V
  const pk=cw+'|'+ch+'|'+ps+'|'+ringSlots.length+'|'+ringR;if(V3.packK!==pk){V3.packK=pk;let md=ps*0.58;if(ringSlots.length>2){md=1e9;const P2=ringSlots.map(q=>[Math.cos(q.a)*q.rx,Math.sin(q.a)*q.ry]);for(let i=0;i<P2.length;i++)for(let j=i+1;j<P2.length;j++){const d=Math.hypot(P2[i][0]-P2[j][0],P2[i][1]-P2[j][1]);if(d>1&&d<md)md=d}}
   V3.wide=Math.max(1,Math.min(2.5,md*1.25/(0.26*ps*1.6)))}
  const wd=V3.wide||1;
- for(let i=0;i<n;i++){const p=ppl[i],w=V3.W(p.x,p.y),s=p.s/cell*1.6;Q.setFromAxisAngle(V3.up,0);P.set(w[0],0,w[1]+0.02);Sc.set(s*wd,s*(0.8+0.25*wd),s*wd*1.05);M.compose(P,Q,Sc);
+ const rc_=(typeof ringC!=='undefined'&&ringC)?ringC:null,K_=V3.tight||0.84;
+ for(let i=0;i<n;i++){const p=ppl[i];let px=p.x,py=p.y;if(rc_){const ex=(px-rc_[0])/(ringRX+laneW*0.3),ey=(py-rc_[1])/(ringR+laneW*0.3);if(ex*ex+ey*ey<1){px=rc_[0]+(px-rc_[0])*K_;py=rc_[1]+(py-rc_[1])*K_}}const w=V3.W(px,py),s=p.s/cell*1.6;Q.setFromAxisAngle(V3.up,0);P.set(w[0],0,w[1]+0.02);Sc.set(s*wd,s*(0.8+0.25*wd),s*wd*1.05);M.compose(P,Q,Sc);
   V3.iBody.setMatrixAt(i,M);V3.iHead.setMatrixAt(i,M);V3.iHair.setMatrixAt(i,M);V3.iLegs.setMatrixAt(i,M);
   if(p.col===-1)C.setHSL((tt*0.25+p.seed*0.13)%1,0.75,0.6);else if(p.col===-2)C.set(FOGC.c);else C.set(COL[p.col]?COL[p.col].c:'#ffffff');V3.iBody.setColorAt(i,C);
   if(p.col>=0&&COL[p.col]&&COL[p.col].n==='white')C.set('#a3abba');V3.iLegs.setColorAt(i,C);
@@ -2013,7 +2014,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270228';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270229';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
