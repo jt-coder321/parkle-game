@@ -408,7 +408,7 @@ body.easyvis .coinchip{background:#ffffff;box-shadow:0 3px 0 rgba(23,50,92,.15)}
  <div class="lbl">Rewards</div>
  <div class="tiles t4">
   <button class="tile" id="mLeaders" style="--tc:#ffb8a8"><i>🥇</i><b>Leaderboard</b><small>Top players</small></button>
-  <button class="tile" id="mChest" style="--tc:#ffd36b"><i>🧰</i><b>Star chest</b><small>0 / 30 ★</small></button>
+  <button class="tile" id="mChest" style="--tc:#ffd36b"><i>🎡</i><b>Star wheel</b><small>0 / 30 ★</small></button>
   <button class="tile" id="mTrophies" style="--tc:#ffe9a8"><i>🏆</i><b>Trophies</b><small>and stats</small></button>
   <button class="tile" id="mShop" style="--tc:#b8ecf0"><i>🛍️</i><b>Shop</b><small id="mCoins">0 coins</small></button>
  </div>
@@ -1945,12 +1945,12 @@ function showMenu(){
  $('mStats').innerHTML='<span>\u2605 '+tot+' stars</span><span>'+save.coins+' coins</span><span>'+streakNow()+' day streak</span>';
  updateGoalBadge();updateChest();updateGift();showOv('ovMenu');startMascot();
 }
-// ---------- star chests: every 30 stars opens one ----------
+// ---------- star wheel: every 30 stars earns one spin ----------
 const CHEST=30;
 function starTotal(){return Object.values(save.stars).reduce((a,b)=>a+b,0)}
 function chestsReady(){return Math.floor(starTotal()/CHEST)-(save.chests||0)}
-function updateChest(){const n=chestsReady(),into=starTotal()%CHEST;$('mChest').innerHTML='<i>\u{1F9F0}</i><b>Star chest</b><small>'+(n>0?'Ready to open!':into+' / '+CHEST+' \u2605')+'</small>'+(n>0?'<span class="badge">'+n+'</span>':'');$('mChest').classList.toggle('hot',n>0)}
-$('mChest').onclick=()=>{sfx('ui');if(chestsReady()<=0){toast('Earn '+(CHEST-starTotal()%CHEST)+' more stars to open the next chest.');return}openWheel(()=>{updateChest();updateHUD();showMenu()})};
+function updateChest(){const n=chestsReady(),into=starTotal()%CHEST;$('mChest').innerHTML='<i>\u{1F3A1}</i><b>Star wheel</b><small>'+(n>0?'Ready to spin!':into+' / '+CHEST+' \u2605')+'</small>'+(n>0?'<span class="badge">'+n+'</span>':'');$('mChest').classList.toggle('hot',n>0)}
+$('mChest').onclick=()=>{sfx('ui');if(chestsReady()<=0){toast('Earn '+(CHEST-starTotal()%CHEST)+' more stars to spin the wheel.');return}openWheel(()=>{updateChest();updateHUD();showMenu()})};
 // ---------- star wheel: every 30 stars, spin for 5 to 120 coins, each prize has its own celebration ----------
 const WHEEL=[{v:5,w:5,c:'#8aa0b8',t:'Small change'},{v:20,w:14,c:'#3fa7d6',t:'Nice!'},{v:50,w:17,c:'#59c36a',t:'Sweet!'},{v:10,w:8,c:'#b07ad8',t:'Every bit helps'},{v:100,w:12,c:'#ff8f3a',t:'JACKPOT!'},{v:35,w:17,c:'#f2c94c',t:'Lucky!'},{v:120,w:10,c:'#e8484b',t:'MEGA JACKPOT!!'},{v:75,w:17,c:'#18b6a0',t:'Big win!'}];
 function openWheel(done){
@@ -2125,7 +2125,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270303';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270304';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -3077,7 +3077,7 @@ const ACH=[
  ['chal1','Up for a challenge','Clear a challenge level','chals',1],['chal10','Medal hunter','Clear 10 challenge levels','chals',10],
  ['daily7','Daily habit','Finish 7 daily puzzles','dailies',7],
  ['endless50','Endless energy','Clear 50 cars in one endless run','endless',50],['endless150','Unstoppable','Clear 150 cars in one endless run','endless',150],
- ['chest3','Treasure hunter','Open 3 star chests','chests',3],
+ ['chest3','Lucky spinner','Spin the star wheel 3 times','chests',3],
  ['power25','Gadget fan','Use 25 power-ups','power',25],
  ['garage','Full garage','Drive every kind of vehicle','garage',0],
 ];
