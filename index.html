@@ -2125,7 +2125,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270302';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270303';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -3279,9 +3279,9 @@ let shopTab='finish';
 const ownedIn=c=>SHOP[c].items.filter(it=>!it[2]||save.owned[c+':'+it[0]]).length;
 const pack3=c=>Math.round(c*2.7/5)*5;
 function boostShopHTML(){const lv=save.unlocked;
- return'<div class="shcol">Boosts help when you are stuck. Bosses give a few for free.</div>'+PWR.slice().sort((a,b)=>(a.min||0)-(b.min||0)||a.cost-b.cost).map(P=>{const lock=(P.min||0)>lv,n=invCount(P.k);
+ return'<div class="shcol">Boosts help when you are stuck. Bosses give a few for free.</div>'+PWR.filter(p=>p.k!=='hint').sort((a,b)=>(a.min||0)-(b.min||0)||a.cost-b.cost).map(P=>{const lock=(P.min||0)>lv,n=invCount(P.k);
   return'<div class="shboost'+(lock?' locked':'')+'"><img src="'+pwIcon(P.k,96)+'" alt=""><div class="sbt"><b>'+P.n+(n?' <span class="sbown">\u00d7'+n+'</span>':'')+'</b><small>'+P.d+'</small></div>'+(lock?'<span class="sblock">Level '+P.min+'</span>':'<div class="sbbuy"><button class="btn small'+(save.coins>=P.cost?' primary2':'')+'" data-buy="'+P.k+'" data-q="1">1 \u00b7 '+P.cost+'</button><button class="btn small'+(save.coins>=pack3(P.cost)?' primary2':'')+'" data-buy="'+P.k+'" data-q="3">3 \u00b7 '+pack3(P.cost)+'</button></div>')+'</div>'}).join('')}
-function buyBoost(k,q){const P=PW[k];if(!P||(P.min||0)>save.unlocked)return false;const price=q===3?pack3(P.cost):P.cost;if(save.coins<price){toast('You need '+(price-save.coins)+' more coins. Win levels to earn coins.');sfx('bump');return false}
+function buyBoost(k,q){const P=PW[k];if(!P||k==='hint'||(P.min||0)>save.unlocked)return false;const price=q===3?pack3(P.cost):P.cost;if(save.coins<price){toast('You need '+(price-save.coins)+' more coins. Win levels to earn coins.');sfx('bump');return false}
  save.coins-=price;save.inv[k]=(save.inv[k]||0)+q;persist();try{syncCoins()}catch(e){}sfx('combo',4);buzz([20,30,40]);toast((q>1?q+' ':'')+P.n+(q>1?'s':'')+' added. '+save.coins+' coins left.');stat('buys');return true}
 function showShop(){$('shCoins').textContent=save.coins+' coins';
  $('shTabs').innerHTML='<button class="chip'+(shopTab==='boost'?' on':'')+'" data-t="boost">\u26A1 Boosts</button>'+Object.keys(SHOP).map(k=>'<button class="chip'+(k===shopTab?' on':'')+'" data-t="'+k+'">'+SHOP[k].t+' <small>'+ownedIn(k)+'/'+SHOP[k].items.length+'</small></button>').join('');
