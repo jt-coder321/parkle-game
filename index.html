@@ -1592,7 +1592,7 @@ V3.pick=function(sx,sy){const T=V3.T,v=new T.Vector2(sx/cw*2-1,-(sy/ch)*2+1);V3.
 let dpr=1,cw=0,ch=0,cell=40,lotX=0,lotY=0,qY=0,qX0=0,sp=20,ps=18,bayY=0,bayW=60,bayH=50,bayX0=0,bayGap=6,topY=0;
 let anims={},visits=[],pList=[],qBase=0,qOff=0,qClock=0,bayFree=[],fx=[],parts=[],floaters=[],flakes=[],hintCar=-1,hintUntil=0,flash={},shakeBays=0,combo=0,lastLeave=-9,decor=[];
 var riderStyle=-1,lowQ=0,qSamp=[],sprC=new Map(),lotC=null,ringHold=false,ringC=null,ringR=0,ringPaths=null,dispPos={},ringSlots=[],ringRX=0,ringIsl=0,ringSlotOf={};
-let vClock=performance.now()/1000,vReal=performance.now();const now=()=>{const r=performance.now();vClock+=(r-vReal)/1000*(save.settings.fast?1.6:1)*(ringHold?2.6:1);vReal=r;return vClock};
+let vClock=performance.now()/1000,vReal=performance.now();const now=()=>{const r=performance.now();vClock+=(r-vReal)/1000*(save.settings.fast?1.6:1)*(ringHold?2.6:1)*((S&&L&&!ended&&S.dep===L.cars.length&&S.qi<S.q.length)?2.2:1);vReal=r;return vClock};
 const ccol=c=>(S&&S.paint&&S.paint[c.id]!=null)?S.paint[c.id]:c.color;
 const tailHead=id=>(S.flip&&S.flip[id])?L.cells[id].map(p=>[p[0],p[1]]):L.cells[id].slice().reverse().map(p=>[p[0],p[1]]);
 const effD=c=>(S.flip&&S.flip[c.id])?(c.d+2)%4:c.d;
@@ -1632,7 +1632,7 @@ function todayKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMo
 function resetView(){
  anims={};pList=[];fx=[];parts=[];floaters=[];visits=[];qBase=S.qi;qOff=S.qi;qClock=0;combo=0;flash={};hintCar=-1;
  bayFree=Array(S.bays.length).fill(0);
- S.bays.forEach((b,i)=>{if(b){visits.push({car:b.car,bay:i,arriveAt:-1,driveEnd:-1,boards:Array(b.n).fill(-1),leaveAt:Infinity,closed:false});bayFree[i]=Infinity}});
+ S.bays.forEach((b,i)=>{if(b){visits.push({car:b.car,bay:i,lb:i,arriveAt:-1,driveEnd:-1,boards:Array(b.n).fill(-1),leaveAt:Infinity,closed:false});bayFree[i]=Infinity}});
 }
 function updateHUD(){
  const left=S.q.length-S.qi;{const b=$('lvlBar');if(b)b.style.width=(S.q.length?100*S.qi/S.q.length:0)+'%'}
@@ -1708,7 +1708,7 @@ cv.addEventListener('pointerdown',e=>{
  const r=cv.getBoundingClientRect();let x=e.clientX-r.left,y=e.clientY-r.top;const rx_=x,ry_=y;if(V3.on){const q_=V3.pick(x,y);x=q_[0];y=q_[1]}
  if(ringC&&Math.pow((x-ringC[0])/(ringRX+laneW*0.5),2)+Math.pow((y-ringC[1])/(ringR+laneW*0.5),2)<1){ringHold=true;if(!save.seen.ringTip){save.seen.ringTip=1;persist();toast('Keep holding to make the riders walk faster.')}return}
  if(y>=bayY-4&&y<=bayY+bayH+4){const b=Math.floor((x-bayX0)/(bayW+bayGap));if(b>=0&&b<slotCount()){
-  if(target==='sweep'){if(S.bays[b]){const k=target;target=null;doPwr(k,b)}else toast('Tap a stop that has a car in it.');return}
+  if(target==='sweep'){const lb_=lbOf(b);if(S.bays[lb_]){const k=target;target=null;doPwr(k,lb_)}else toast('Tap a stop that has a car in it.');return}
   if(b>=S.bays.length){if(invCount('stop'))doPwr('stop');else toast('This stop is locked. Earn Extra Stop power-ups by clearing levels.');return}}}
  let tx=Math.floor((x-lotX)/cell),ty=Math.floor((y-lotY)/cell);
  if(tx<0||ty<0||tx>=L.w||ty>=L.h){if(target){target=null;toast('Power-up cancelled.')}return}
@@ -1779,24 +1779,27 @@ function playEvents(ev){
   if(e.t==='exit'){
    const c=L.cars[e.car],poly=buildPoly(c,e.tr.path,{d:e.tr.d});
    const dist=poly.length-c.len,driveDur=0.2+0.05*dist,driveEnd=t+driveDur;
-   const arriveAt=Math.max(driveEnd+0.28,bayFree[e.b]+0.05);
+   const vb=visBay(e.b,driveEnd),arriveAt=Math.max(driveEnd+0.28,bayFree[vb]+0.05);
    anims[e.car]={type:'exit',t0:t,driveEnd,poly,s0:c.len-1,s1:poly.length-1};if(save.equip.horn!=='none'&&AC)playHorn(save.equip.horn,AC.currentTime+Math.min(0.15,driveDur*0.3));
-   visits.push({car:e.car,bay:e.b,arriveAt,driveEnd,boards:[],leaveAt:Infinity,closed:false,exit:true});
-   bayFree[e.b]=Infinity;fx.push({at:arriveAt,fn:()=>{sfx('park');const[x,y]=bayCenter(e.b);for(let k=0;k<6;k++)puff(x+(Math.random()-0.5)*bayW*0.7,y+bayH*0.25,cell*0.16);}});
+   visits.push({car:e.car,bay:vb,lb:e.b,arriveAt,driveEnd,boards:[],leaveAt:Infinity,closed:false,exit:true});
+   bayFree[vb]=Infinity;fx.push({at:arriveAt,fn:()=>{sfx('park');const[x,y]=bayCenter(vb);for(let k=0;k<6;k++)puff(x+(Math.random()-0.5)*bayW*0.7,y+bayH*0.25,cell*0.16);}});
   }else if(e.t==='board'){
-   const v=curVisit(e.b),st=Math.max(qClock,v.arriveAt,t),seat=v.boards.length,[bx_,by_]=bayCenter(e.b),dur=0.16+(Math.abs(walkY-qFront[1])+Math.abs(bx_-qFront[0])+Math.abs(by_-walkY))/(cell*9);
+   const v=curVisit(e.b),st=Math.max(qClock,v.arriveAt,t),seat=v.boards.length,[bx_,by_]=bayCenter(v.bay),dur=0.16+(Math.abs(walkY-qFront[1])+Math.abs(bx_-qFront[0])+Math.abs(by_-walkY))/(cell*9);
    const pc=S.q[e.q],pr=S.qid[e.q];pList.push({q:e.q,col:pc,rid:pr,st,dur,v,seat});v.boards.push(st+dur);(v.boardQ||(v.boardQ=[])).push(pr);qClock=st+(st-t>2?0.03:st-t>1?0.045:0.07);fx.push({at:st+dur,fn:()=>{sfx('board',seat);const thB=Math.min(bayH*0.46,cell*0.7),lenB=bayW*0.78-thB,[bx,by]=bayCenter(v.bay),p=seatPos(bx,by,lenB,thB,L.cars[v.car].cap,seat);const qc=pc,rc=qc<0?'#ffffff':COL[qc].c;sparks(p[0],p[1],6,qc<0?'#fff6c8':COL[qc].l);ring(p[0],p[1],rc,cell*0.55);floaters.push({x:p[0],y:p[1]-thB*0.5,t0:now(),txt:'+1',col:rc,small:true,dur:0.6})}});
   }else if(e.t==='crack'){const i=e.i;fx.push({at:t+0.35,fn:()=>{sfx('bump');const X=gx(i%L.w),Y=gy((i/L.w)|0);for(let k=0;k<6;k++)puff(X+(Math.random()-0.5)*cell*0.6,Y+(Math.random()-0.5)*cell*0.6,cell*0.14);floaters.push({x:X,y:Y,t0:now(),txt:'CRACK!',col:'#8b5a36',small:true})}});
   }else if(e.t==='plow'){const i=e.i;fx.push({at:t+0.2,fn:()=>{const X=gx(i%L.w),Y=gy((i/L.w)|0);sparks(X,Y,8,'#ff8a2a');floaters.push({x:X,y:Y,t0:now(),txt:'POW!',col:'#ff8a2a',small:true})}});
   }else if(e.t==='home'){const nm=e.col<0?'rainbow':COL[e.col].n;setTimeout(()=>toast(e.n+' '+nm+' rider'+(e.n>1?'s':'')+' had no seat left and took a taxi home.'),300);
   }else if(e.t==='leave'){
-   const v=curVisit(e.b);v.leaveAt=Math.max(t,v.arriveAt,v.boards.length?v.boards[v.boards.length-1]:t)+0.3;v.closed=true;bayFree[e.b]=v.leaveAt+0.45;
+   const v=curVisit(e.b);v.leaveAt=Math.max(t,v.arriveAt,v.boards.length?v.boards[v.boards.length-1]:t)+0.3;v.closed=true;bayFree[v.bay]=v.leaveAt+0.45;
    if(e.early)setTimeout(()=>toast(e.tow?'The tow truck took the car in the red stop.':'Nobody else is waiting for that car, so it drove off.'),300);
    fx.push({at:v.leaveAt,fn:()=>onLeave(v)});
   }
  }
 }
-function curVisit(b){for(let i=visits.length-1;i>=0;i--)if(visits[i].bay===b&&!visits[i].closed)return visits[i];return null}
+function curVisit(b){for(let i=visits.length-1;i>=0;i--)if(visits[i].lb===b&&!visits[i].closed)return visits[i];return null}
+// a tapped car whose stop is still busy boarding goes to a free stop instead of queueing; the rules still count it in the first free stop
+function visBay(b,driveEnd){if(L.towBay>=0||L.chal==='fourstops'&&0)return b;if(bayFree[b]<=driveEnd+0.1)return b;let best=b,bf=bayFree[b];for(let i=0;i<S.bays.length;i++){if(bayFree[i]<=driveEnd+0.1){return i}if(bayFree[i]<bf){bf=bayFree[i];best=i}}return best}
+function lbOf(vb){for(let i=visits.length-1;i>=0;i--)if(visits[i].bay===vb&&!visits[i].closed)return visits[i].lb;return vb}
 function bayCenter(b){return[bayX0+b*(bayW+bayGap)+bayW/2,bayY+bayH*0.5]}
 function onLeave(v){
  {const car=L.cars[v.car];if(car){const vr=carVariant(car);save.garage[vr]=(save.garage[vr]||0)+1;stat('cars');stat('riders',v.boards.length);persist()}}
@@ -2054,7 +2057,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270245';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270256';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -2926,7 +2929,7 @@ function doPwr(k,arg){
  switch(k){
   case'stop':if(L.chal==='fourstops'&&mode.type==='level'){toast('Extra Stop is off on this challenge level.');return}if(S.bays.length>=L.bays+2){toast('Both extra stops are already open.');return}S.bays.push(null);bayFree.push(0);layout();{const[x,y]=bayCenter(S.bays.length-1);fxAt=[x,y]}break;
   case'tow':{const c=L.cars[arg];if(S.gone[arg]){toast('That car already left.');return}S.gone[arg]=1;S.dep++;fxAt=carAt(arg);anims[arg]={type:'tow',t0:t,dur:0.7,pts:carPts(tailHead(arg),c.len-1,c.len)};board(L,S,ev);break}
-  case'sweep':{if(arg==null||arg<0||!S.bays[arg]){toast('Tap a stop that has a parked car.');return}const B=S.bays[arg],c=L.cars[B.car];S.bays[arg]=null;const v=curVisit(arg);if(v){v.closed=true;v.leaveAt=Math.max(t,v.boards.length?v.boards[v.boards.length-1]:t)+0.15;bayFree[arg]=v.leaveAt+0.45;fx.push({at:v.leaveAt,fn:()=>onLeave(v)})}fxAt=bayCenter(arg);board(L,S,ev);break}
+  case'sweep':{if(arg==null||arg<0||!S.bays[arg]){toast('Tap a stop that has a parked car.');return}const B=S.bays[arg],c=L.cars[B.car];S.bays[arg]=null;const v=curVisit(arg);if(v){v.closed=true;v.leaveAt=Math.max(t,v.boards.length?v.boards[v.boards.length-1]:t)+0.15;bayFree[v.bay]=v.leaveAt+0.45;fx.push({at:v.leaveAt,fn:()=>onLeave(v)})}fxAt=bayCenter(v?v.bay:arg);board(L,S,ev);break}
   case'ghost':{const c=L.cars[arg];if(S.gone[arg]){toast('That car already left.');return}if(!S.bays.includes(null)){toast('Every stop is taken. Free one up first.');return}
    const ec=effCar(L,S,c);let x=ec.x,y=ec.y;const path=[];while(true){x+=DX[ec.d];y+=DY[ec.d];if(x<0||y<0||x>=L.w||y>=L.h)break;path.push([x,y])}
    applyTap(L,S,arg,ev,{ok:true,path,d:ec.d});fxAt=carAt(arg);break}
