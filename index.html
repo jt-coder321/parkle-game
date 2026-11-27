@@ -1455,7 +1455,11 @@ V3.obj=function(c){let o=V3.carObj&&V3.carObj[c.id];if(o&&o.L===L)return o;const
  const beam=new T.Mesh(new T.PlaneGeometry(0.9,1.7),new T.MeshBasicMaterial({map:V3.beamTex,color:'#ffe9a8',transparent:true,opacity:0.5,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}));beam.rotation.x=-Math.PI/2;beam.position.set(0,0.02,-G.Lz/2-0.85);beam.visible=false;g.add(beam);
  let lift=null;if(c.liftUnder>=0){lift=new T.Group();const pm=V3.liftM||(V3.liftM=new T.MeshStandardMaterial({color:'#8a93a6',roughness:0.5,metalness:0.4}));const pl=new T.Mesh(new T.BoxGeometry(0.9,0.05,c.len-0.05),pm);pl.position.y=-0.04;pl.castShadow=true;lift.add(pl);
   for(const sx of[-0.44,0.44])for(const sz of[-(c.len/2-0.08),c.len/2-0.08]){const po=new T.Mesh(new T.BoxGeometry(0.05,0.5,0.05),pm);po.position.set(sx,-0.3,sz);lift.add(po)}g.add(lift)}
- V3.objs.add(g);o={L,g,body,meshes,hit,badge,beam,G,ice:null,hex:null,bk:null,lift};V3.carObj[c.id]=o;return o};
+ if(!V3.arrowTex){const c2=document.createElement('canvas');c2.width=c2.height=128;const x=c2.getContext('2d');x.lineJoin='round';x.beginPath();x.moveTo(64,8);x.lineTo(118,66);x.lineTo(84,66);x.lineTo(84,120);x.lineTo(44,120);x.lineTo(44,66);x.lineTo(10,66);x.closePath();x.lineWidth=14;x.strokeStyle='#1d2330';x.stroke();x.fillStyle='#ffffff';x.fill();V3.arrowTex=new T.CanvasTexture(c2);V3.arrowTex.colorSpace=T.SRGBColorSpace;
+  V3.arrowG=new T.PlaneGeometry(1,1);V3.arrowG.rotateX(-Math.PI/2);V3.arrowM=new T.MeshBasicMaterial({map:V3.arrowTex,transparent:true,depthWrite:false,toneMapped:false})}
+ const arrow=new T.Mesh(V3.arrowG,V3.arrowM);arrow.renderOrder=15;const as=Math.min(0.5,G.W*0.62);arrow.scale.set(as,1,as);arrow.position.set(0,G.roofY+0.08,c.len>1?-G.Lz*0.18:0);g.add(arrow);
+ if(c.len>1)badge.position.z=G.Lz*0.24;
+ V3.objs.add(g);o={L,g,body,meshes,hit,badge,beam,G,ice:null,hex:null,bk:null,lift,arrow};V3.carObj[c.id]=o;return o};
 V3.syncCars=function(){if(V3.carObj&&V3.carObjL===L)for(const k in V3.carObj)V3.carObj[k].g.visible=false;const T=V3.T,tt=now();
  for(const r of V3.cars.values()){const c=r.c,o=V3.obj(c);o.g.visible=true;const w=V3.W(r.x,r.y);
   let sl=(r.len/cell)/(o.G.Lz+0.0001),sw=(r.th/cell)/0.74;let s0=1,s1=1;if(r.sq){s0=r.sq[0];s1=r.sq[1]}
@@ -1472,6 +1476,7 @@ V3.syncCars=function(){if(V3.carObj&&V3.carObjL===L)for(const k in V3.carObj)V3.
   if(o.bk!==bk){o.bk=bk;o.badge.visible=!!bk;if(bk){o.badge.material.map=V3.badge(bk);o.badge.material.needsUpdate=true}}
   {const gs=o.g.scale,bs=0.5;o.badge.scale.set(bs/gs.x,bs/gs.y,1);o.badge.position.y=o.G.roofY+0.3/gs.y}
   if(fz&&!o.ice){o.ice=new T.Mesh(V3.iceG(c.len),V3.M.ice);o.ice.renderOrder=2;o.g.add(o.ice)}else if(!fz&&o.ice){o.g.remove(o.ice);o.ice=null}
+  {const show=r.state&&!S.gone[c.id]&&!(c.liftTop>=0&&!S.gone[c.liftTop]);o.arrow.visible=show;if(show){const d=effD(c);o.arrow.rotation.y=Math.atan2(-DX[d],-DY[d])-o.g.rotation.y;if(c.len===1)o.badge.position.z=0.001}}
   o.beam.visible=V3.isNight&&!fz;if(o.lift)o.lift.visible=lifted;
  }};
 V3.iceG=function(len){V3.ic=V3.ic||{};return V3.ic[len]||(V3.ic[len]=V3.rbox(0.94,len-0.04,0.82,0.16))};
@@ -1498,7 +1503,7 @@ V3.syncInst=function(){const T=V3.T,M=V3.tmpM,Q=V3.tmpQ,P=V3.tmpV,Sc=V3.tmpS,C=V
   V3.iBody.setMatrixAt(i,M);V3.iHead.setMatrixAt(i,M);V3.iHair.setMatrixAt(i,M);V3.iLegs.setMatrixAt(i,M);
   if(p.col===-1)C.setHSL((tt*0.25+p.seed*0.13)%1,0.75,0.6);else if(p.col===-2)C.set(FOGC.c);else C.set(COL[p.col]?COL[p.col].c:'#ffffff');V3.iBody.setColorAt(i,C);
   if(p.col>=0&&COL[p.col]&&COL[p.col].n==='white')C.set('#a3abba');V3.iLegs.setColorAt(i,C);
-  C.set(V3SKIN[p.seed%V3SKIN.length]);V3.iHead.setColorAt(i,C);C.set(V3HAIR[(p.seed*7)%V3HAIR.length]);V3.iHair.setColorAt(i,C)}
+  if(p.col===-1)C.setHSL((tt*0.25+p.seed*0.13)%1,0.75,0.6);else if(p.col===-2)C.set(FOGC.c);else C.set(COL[p.col]?COL[p.col].c:'#ffffff');V3.iHead.setColorAt(i,C);C.offsetHSL(0,0,-0.1);V3.iHair.setColorAt(i,C)}
  for(const im of[V3.iBody,V3.iHead,V3.iHair,V3.iLegs]){im.count=n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true}
  const cr=V3.crowns,nc=Math.min(cr.length,60);for(let i=0;i<nc;i++){const p=cr[i],w=V3.W(p.x,p.y),s=p.s/cell*1.6;Q.setFromAxisAngle(V3.up,tt*2);P.set(w[0],0,w[1]+0.02);Sc.set(s*(V3.wide||1),s*(0.85+0.15*(V3.wide||1)),s*(V3.wide||1));M.compose(P,Q,Sc);V3.iCrown.setMatrixAt(i,M)}V3.iCrown.count=nc;V3.iCrown.instanceMatrix.needsUpdate=true;
  const tr=V3.trees,nt=Math.min(tr.length,120);for(let i=0;i<nt;i++){const p=tr[i],w=V3.W(p.x,p.y),s=p.s/cell*1.05;Q.setFromAxisAngle(V3.up,(p.x*0.37+p.y*0.11)%6);P.set(w[0],0,w[1]);Sc.set(s,s,s);M.compose(P,Q,Sc);V3.iTrunk.setMatrixAt(i,M);V3.iLeaf.setMatrixAt(i,M);V3.iLeaf2.setMatrixAt(i,M)}
@@ -1994,7 +1999,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270047';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270050';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
