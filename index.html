@@ -304,6 +304,7 @@ body{background-image:radial-gradient(rgba(255,255,255,.16) 2.5px,transparent 3p
 .menu .lbl{margin:4px 2px -2px;text-align:left}
 .tiles{display:grid;gap:8px}.tiles.t3{grid-template-columns:repeat(3,1fr)}.tiles.t4{grid-template-columns:repeat(4,1fr)}
 .tile{position:relative;background:var(--tc,#eee);color:#2b2440;border:3px solid var(--ink);border-radius:18px;box-shadow:0 4px 0 var(--ink);padding:7px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--display);transition:transform .14s cubic-bezier(.3,1.9,.5,1);min-width:0}
+.moreb{width:100%;padding:8px 10px;font-size:14px;opacity:.9}.moreb span{display:inline-block;transition:transform .2s}.moreb[aria-expanded=true] span{transform:rotate(180deg)}.morebox[hidden]{display:none!important}
 .tile:active{transform:translateY(3px) scale(.94);box-shadow:0 1px 0 var(--ink)}
 .tile i{font-style:normal;font-size:26px;line-height:1.1;filter:drop-shadow(0 2px 0 rgba(0,0,0,.18))}
 .tile b{font-weight:700;font-size:14px;line-height:1.1;text-align:center}
@@ -392,25 +393,23 @@ body.easyvis .coinchip{background:#ffffff;box-shadow:0 3px 0 rgba(23,50,92,.15)}
  <div class="mascot"><canvas id="mCv" width="120" height="84"></canvas><div class="bubble" id="mTip">Tap a car to send it on its way!</div></div>
  <button class="btn primary big" id="mPlay">Play</button>
  <button class="btn" id="mResume" hidden>Back to level</button>
- <div class="lbl">Today</div>
  <div class="tiles t3">
   <button class="tile" id="mDaily" style="--tc:#ffe08a"><i>📅</i><b>Daily puzzle</b><small>New today</small></button>
   <button class="tile" id="mGoals" style="--tc:#b8f0c8"><i>🎯</i><b>Daily goals</b><small>3 quick tasks</small><span class="badge" id="mGoalsN" hidden>0</span></button>
   <button class="tile" id="mGift" style="--tc:#ffc4d8"><i>🎁</i><b>Daily gift</b><small id="mGiftS">Day 1</small><span class="badge" id="mGiftN" hidden>1</span></button>
  </div>
- <div class="lbl">More ways to play</div>
  <div class="tiles t4">
+  <button class="tile" id="mChest" style="--tc:#ffd36b"><i>🎡</i><b>Star wheel</b><small>0 / 30 ★</small></button>
+  <button class="tile" id="mShop" style="--tc:#b8ecf0"><i>🛍️</i><b>Shop</b><small id="mCoins">0 coins</small></button>
+  <button class="tile" id="mLeaders" style="--tc:#ffb8a8"><i>🥇</i><b>Leaders</b><small>Top players</small></button>
+  <button class="tile" id="mTrophies" style="--tc:#ffe9a8"><i>🏆</i><b>Trophies</b><small>and stats</small></button>
+ </div>
+ <button class="btn moreb" id="mMore" aria-expanded="false">More ways to play <span>▾</span></button>
+ <div class="tiles t4 morebox" id="mMoreBox" hidden>
   <button class="tile" id="mEndless" style="--tc:#cdbdff"><i>♾️</i><b>Endless</b></button>
   <button class="tile" id="mWeekly" style="--tc:#a8d8ff"><i>🏁</i><b>Weekly race</b></button>
   <button class="tile" id="mPacks" style="--tc:#e6c8ff"><i>🧩</i><b>Puzzle packs</b></button>
   <button class="tile" id="mArchive" style="--tc:#ffd0a8"><i>🗓️</i><b>Past dailies</b></button>
- </div>
- <div class="lbl">Rewards</div>
- <div class="tiles t4">
-  <button class="tile" id="mLeaders" style="--tc:#ffb8a8"><i>🥇</i><b>Leaderboard</b><small>Top players</small></button>
-  <button class="tile" id="mChest" style="--tc:#ffd36b"><i>🎡</i><b>Star wheel</b><small>0 / 30 ★</small></button>
-  <button class="tile" id="mTrophies" style="--tc:#ffe9a8"><i>🏆</i><b>Trophies</b><small>and stats</small></button>
-  <button class="tile" id="mShop" style="--tc:#b8ecf0"><i>🛍️</i><b>Shop</b><small id="mCoins">0 coins</small></button>
  </div>
  <div class="row minis"><button class="btn" id="mLevels">🗺️ Map</button><button class="btn" id="mGuide">❓ Help</button><button class="btn" id="mSettings">⚙️ Settings</button></div>
  <div class="statline" id="mStats"></div>
@@ -1950,6 +1949,7 @@ const CHEST=30;
 function starTotal(){return Object.values(save.stars).reduce((a,b)=>a+b,0)}
 function chestsReady(){return Math.floor(starTotal()/CHEST)-(save.chests||0)}
 function updateChest(){const n=chestsReady(),into=starTotal()%CHEST;$('mChest').innerHTML='<i>\u{1F3A1}</i><b>Star wheel</b><small>'+(n>0?'Ready to spin!':into+' / '+CHEST+' \u2605')+'</small>'+(n>0?'<span class="badge">'+n+'</span>':'');$('mChest').classList.toggle('hot',n>0)}
+$('mMore').onclick=()=>{const bx=$('mMoreBox'),on=bx.hidden;bx.hidden=!on;$('mMore').setAttribute('aria-expanded',on);sfx('ui')};
 $('mChest').onclick=()=>{sfx('ui');if(chestsReady()<=0){toast('Earn '+(CHEST-starTotal()%CHEST)+' more stars to spin the wheel.');return}openWheel(()=>{updateChest();updateHUD();showMenu()})};
 // ---------- star wheel: every 30 stars, spin for 5 to 120 coins, each prize has its own celebration ----------
 const WHEEL=[{v:5,w:5,c:'#8aa0b8',t:'Small change'},{v:20,w:14,c:'#3fa7d6',t:'Nice!'},{v:50,w:17,c:'#59c36a',t:'Sweet!'},{v:10,w:8,c:'#b07ad8',t:'Every bit helps'},{v:100,w:12,c:'#ff8f3a',t:'JACKPOT!'},{v:35,w:17,c:'#f2c94c',t:'Lucky!'},{v:120,w:10,c:'#e8484b',t:'MEGA JACKPOT!!'},{v:75,w:17,c:'#18b6a0',t:'Big win!'}];
