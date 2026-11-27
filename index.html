@@ -1337,10 +1337,10 @@ V3.build=function(THREE){
  const sun=new THREE.DirectionalLight('#fff1d6',2.3);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.02;sun.shadow.radius=3;scene.add(sun);scene.add(sun.target);V3.sun=sun;
  // ground: the 2D frame as an unlit texture, a shadow catcher above it, and plain grass beyond
  V3.tex=new THREE.CanvasTexture(cv);V3.tex.colorSpace=THREE.SRGBColorSpace;V3.tex.anisotropy=R.capabilities.getMaxAnisotropy();V3.tex.generateMipmaps=false;V3.tex.minFilter=THREE.LinearFilter;
- V3.ground=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:V3.tex,toneMapped:false}));V3.ground.rotation.x=-Math.PI/2;scene.add(V3.ground);
+ V3.ground=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:V3.tex,toneMapped:false}));V3.ground.rotation.x=-Math.PI/2;V3.root=new THREE.Group();scene.add(V3.root);V3.root.add(V3.ground);V3.Zs=1;
  V3.far=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshBasicMaterial({color:'#86c463',toneMapped:false}));V3.far.rotation.x=-Math.PI/2;V3.far.position.y=-0.02;scene.add(V3.far);
- V3.shadow=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShadowMaterial({opacity:0.24}));V3.shadow.rotation.x=-Math.PI/2;V3.shadow.position.y=0.003;V3.shadow.receiveShadow=true;scene.add(V3.shadow);
- V3.objs=new THREE.Group();scene.add(V3.objs);V3.night=new THREE.Group();scene.add(V3.night);
+ V3.shadow=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShadowMaterial({opacity:0.24}));V3.shadow.rotation.x=-Math.PI/2;V3.shadow.position.y=0.003;V3.shadow.receiveShadow=true;V3.root.add(V3.shadow);
+ V3.objs=new THREE.Group();V3.root.add(V3.objs);V3.night=new THREE.Group();V3.root.add(V3.night);
  V3.mats();V3.instanced();V3.ray=new THREE.Raycaster();V3.plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
 };
 // ---------- materials, merged vehicle geometry ----------
@@ -1421,7 +1421,7 @@ V3.fxLayer=function(){V3.rec=false;if(!V3.on)return;const o=V3.oc,od=Math.min(2,
  const c0=[cw/2,lotY+L.h*cell*0.75],s=cell*3,A=V3.toScreen(c0[0],c0[1]),B=V3.toScreen(c0[0]+s,c0[1]),C=V3.toScreen(c0[0],c0[1]+s);
  const a=(B[0]-A[0])/s,b=(B[1]-A[1])/s,c=(C[0]-A[0])/s,d=(C[1]-A[1])/s;g.setTransform(a*od,b*od,c*od,d*od,(A[0]-a*c0[0]-c*c0[1])*od,(A[1]-b*c0[0]-d*c0[1])*od);
  V3.saveCx=cx;cx=g;};
-V3.toScreen=function(x,y){const w=V3.W(x,y),v=V3.tmpV.set(w[0],0,w[1]).project(V3.cam);return[(v.x+1)/2*cw,(1-v.y)/2*ch]};
+V3.toScreen=function(x,y){const w=V3.W(x,y),v=V3.tmpV.set(w[0],0,w[1]*V3.Zs).project(V3.cam);return[(v.x+1)/2*cw,(1-v.y)/2*ch]};
 V3.end=function(){V3.rec=false;if(V3.saveCx){cx=V3.saveCx;V3.saveCx=null}
  if(!V3.on||!L||!cw)return;const T=V3.T;
  if(V3.k!==cw+'|'+ch+'|'+cell+'|'+lotY+'|'+(lowQ|0))V3.fit();
@@ -1434,11 +1434,16 @@ V3.fit=function(){const T=V3.T;V3.k=cw+'|'+ch+'|'+cell+'|'+lotY+'|'+(lowQ|0);con
  // fit what matters: the lot (near the camera) and the crowd and stops above it, not the empty margins
  const pad=cell*0.55,lb=V3.W(0,Math.min(ch,lotY+L.h*cell+pad+cell*0.15)),lt=V3.W(0,Math.max(0,topY-cell*0.1)),lx0=V3.W(Math.max(0,Math.min(lotX-pad,bayX0)-cell*0.15),0)[0],lx1=V3.W(Math.min(cw,Math.max(lotX+L.w*cell+pad,cw-bayX0)+cell*0.15),0)[0];
  const pts=[new T.Vector3(lx0,0,lb[1]),new T.Vector3(lx1,0,lb[1]),new T.Vector3(lx0,0.8,lb[1]),new T.Vector3(lx1,0.8,lb[1]),new T.Vector3(-W/2,0,lt[1]),new T.Vector3(W/2,0,lt[1])];
- const tc=new T.Vector3(),fitAt=(d,cz)=>{cam.position.set(0,Math.sin(el)*d,cz+Math.cos(el)*d);cam.lookAt(0,0,cz);cam.updateMatrixWorld();let x0=9,x1=-9,y0=9,y1=-9;for(const p of pts){const v=tc.copy(p).project(cam);x0=Math.min(x0,v.x);x1=Math.max(x1,v.x);y0=Math.min(y0,v.y);y1=Math.max(y1,v.y)}return{x0,x1,y0,y1}};
- let cz=0;for(let pass=0;pass<3;pass++){let lo=3,hi=300;for(let i=0;i<40;i++){const d=(lo+hi)/2,b=fitAt(d,cz);if(b.x0>=-1&&b.x1<=1&&b.y0>=-1&&b.y1<=1)hi=d;else lo=d}
-  const b=fitAt(hi,cz);const off=(b.y0+b.y1)/2;cz-=off*hi*Math.tan(cam.fov*Math.PI/360)/Math.sin(el)*0.9;V3.d=hi}
- fitAt(V3.d,cz);V3.cz=cz;
- const s=V3.sun;s.position.set(-0.35*W,Math.max(W,H)*1.4,cz+0.5*H);s.target.position.set(0,0,cz);const sc=s.shadow.camera,r=Math.max(W,H)*0.62;sc.left=-r;sc.right=r;sc.top=r;sc.bottom=-r;sc.near=1;sc.far=Math.max(W,H)*4;sc.updateProjectionMatrix();
+ const tc=new T.Vector3();let Zs=1;
+ const fitAt=(d,cz)=>{cam.position.set(0,Math.sin(el)*d,cz+Math.cos(el)*d);cam.lookAt(0,0,cz);cam.updateMatrixWorld();let x0=9,x1=-9,y0=9,y1=-9;for(const p of pts){const v=tc.set(p.x,p.y,p.z*Zs).project(cam);x0=Math.min(x0,v.x);x1=Math.max(x1,v.x);y0=Math.min(y0,v.y);y1=Math.max(y1,v.y)}return{x0,x1,y0,y1}};
+ // find the smallest camera distance that frames the scene; xOnly ignores the height limit
+ const solve=(xOnly)=>{let cz=0,d=0;for(let pass=0;pass<3;pass++){let lo=3,hi=300;for(let i=0;i<36;i++){const m=(lo+hi)/2,b=fitAt(m,cz);if(b.x0>=-1&&b.x1<=1&&(xOnly||(b.y0>=-1&&b.y1<=1)))hi=m;else lo=m}
+   const b=fitAt(hi,cz);const off=(b.y0+b.y1)/2;cz-=off*hi*Math.tan(cam.fov*Math.PI/360)/Math.sin(el)*0.9;d=hi}return{d,cz}};
+ // the flat layout is as wide as the screen but not as tall once the camera tilts, so stretch the board front to back until it fills the height too
+ let lo=1,hi=1.9;for(let i=0;i<12;i++){const m=(lo+hi)/2;Zs=m;const full=solve(false),xo=solve(true);if(full.d<=xo.d*1.004)lo=m;else hi=m}
+ Zs=lo;V3.Zs=Zs;V3.root.scale.set(1,1,Zs);V3.root.updateMatrixWorld(true);
+ const fin=solve(false);V3.d=fin.d;let cz=fin.cz;fitAt(V3.d,cz);V3.cz=cz;
+ const s=V3.sun;s.position.set(-0.35*W,Math.max(W,H*Zs)*1.4,cz+0.5*H*Zs);s.target.position.set(0,0,cz);const sc=s.shadow.camera,r=Math.max(W,H*Zs)*0.62;sc.left=-r;sc.right=r;sc.top=r;sc.bottom=-r;sc.near=1;sc.far=Math.max(W,H*Zs)*4;sc.updateProjectionMatrix();
  V3.nightK=null;
 };
 V3.look=function(){const Tm=theme(),n=!!Tm.night;if(V3.lookK===themeKey()+n)return;V3.lookK=themeKey()+n;const T=V3.T;
@@ -1450,7 +1455,7 @@ V3.look=function(){const Tm=theme(),n=!!Tm.night;if(V3.lookK===themeKey()+n)retu
 V3.obj=function(c){let o=V3.carObj&&V3.carObj[c.id];if(o&&o.L===L)return o;const T=V3.T;if(!V3.carObj||V3.carObjL!==L){if(V3.carObj)for(const k in V3.carObj)V3.objs.remove(V3.carObj[k].g);V3.carObj={};V3.carObjL=L}
  const G=V3.vgeo(c.variant||'sedan',c.len),g=new T.Group(),body=new T.Group();g.add(body);const meshes=[];
  for(const[k,geo]of G.list){const m=new T.Mesh(geo,k==='paint'?V3.paint('#888'):V3.M[k]);m.castShadow=true;m.userData.k=k;body.add(m);meshes.push(m)}
- const hit=new T.Mesh(new T.BoxGeometry(0.98,0.9,c.len),new T.MeshBasicMaterial({visible:false}));hit.position.y=0.4;hit.userData.car=c.id;g.add(hit);
+ const hit=new T.Mesh(new T.BoxGeometry(1.0,1.3,c.len),new T.MeshBasicMaterial({visible:false}));hit.position.y=0.62;hit.userData.car=c.id;g.add(hit);
  const badge=new T.Sprite(new T.SpriteMaterial({depthTest:false,transparent:true}));badge.renderOrder=20;badge.position.y=G.roofY+0.3;g.add(badge);
  const beam=new T.Mesh(new T.PlaneGeometry(0.9,1.7),new T.MeshBasicMaterial({map:V3.beamTex,color:'#ffe9a8',transparent:true,opacity:0.5,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}));beam.rotation.x=-Math.PI/2;beam.position.set(0,0.02,-G.Lz/2-0.85);beam.visible=false;g.add(beam);
  let lift=null;if(c.liftUnder>=0){lift=new T.Group();const pm=V3.liftM||(V3.liftM=new T.MeshStandardMaterial({color:'#8a93a6',roughness:0.5,metalness:0.4}));const pl=new T.Mesh(new T.BoxGeometry(0.9,0.05,c.len-0.05),pm);pl.position.y=-0.04;pl.castShadow=true;lift.add(pl);
@@ -1538,7 +1543,10 @@ V3.nightLights=function(){const n=V3.isNight;V3.night.visible=n;if(!n)return;con
 // tap: a car under the finger wins, otherwise the ground point under it
 V3.pick=function(sx,sy){const T=V3.T,v=new T.Vector2(sx/cw*2-1,-(sy/ch)*2+1);V3.ray.setFromCamera(v,V3.cam);
  if(V3.carObj&&V3.carObjL===L){const hs=[];for(const k in V3.carObj){const o=V3.carObj[k];if(o.g.visible&&!S.gone[+k])hs.push(o.hit)}const h=V3.ray.intersectObjects(hs,false);if(h.length){const id=h[0].object.userData.car,m=L.cells[id][Math.floor(L.cells[id].length/2)];return[gx(m[0]),gy(m[1])]}}
- const p=new T.Vector3();if(!V3.ray.ray.intersectPlane(V3.plane,p))return[sx,sy];return[p.x*cell+cw/2,p.z*cell+ch/2]};
+ // nothing under the finger: take the nearest car on screen, so a tap on a badge, a gap or a car's edge still counts
+ if(V3.carObj&&V3.carObjL===L){let best=-1,bd=Math.max(44,cell*1.15);const q=new T.Vector3();for(const k in V3.carObj){const o=V3.carObj[k];if(!o.g.visible||S.gone[+k])continue;q.set(o.g.position.x,0.4,o.g.position.z*V3.Zs).project(V3.cam);const d=Math.hypot((q.x+1)/2*cw-sx,(1-q.y)/2*ch-sy);if(d<bd){bd=d;best=+k}}
+  if(best>=0){const m=L.cells[best][Math.floor(L.cells[best].length/2)];return[gx(m[0]),gy(m[1])]}}
+ const p=new T.Vector3();if(!V3.ray.ray.intersectPlane(V3.plane,p))return[sx,sy];return[p.x*cell+cw/2,p.z/V3.Zs*cell+ch/2]};
 
 let dpr=1,cw=0,ch=0,cell=40,lotX=0,lotY=0,qY=0,qX0=0,sp=20,ps=18,bayY=0,bayW=60,bayH=50,bayX0=0,bayGap=6,topY=0;
 let anims={},visits=[],pList=[],qBase=0,qOff=0,qClock=0,bayFree=[],fx=[],parts=[],floaters=[],flakes=[],hintCar=-1,hintUntil=0,flash={},shakeBays=0,combo=0,lastLeave=-9,decor=[];
@@ -1656,7 +1664,7 @@ function makeDecor(){
 // ---------- input ----------
 cv.addEventListener('pointerdown',e=>{
  ensureAudio();if(ended||anyOverlay())return;
- const r=cv.getBoundingClientRect();let x=e.clientX-r.left,y=e.clientY-r.top;if(V3.on){const q_=V3.pick(x,y);x=q_[0];y=q_[1]}
+ const r=cv.getBoundingClientRect();let x=e.clientX-r.left,y=e.clientY-r.top;const rx_=x,ry_=y;if(V3.on){const q_=V3.pick(x,y);x=q_[0];y=q_[1]}
  if(ringC&&Math.pow((x-ringC[0])/(ringRX+laneW*0.5),2)+Math.pow((y-ringC[1])/(ringR+laneW*0.5),2)<1){ringHold=true;if(!save.seen.ringTip){save.seen.ringTip=1;persist();toast('Keep holding to make the riders walk faster.')}return}
  if(y>=bayY-4&&y<=bayY+bayH+4){const b=Math.floor((x-bayX0)/(bayW+bayGap));if(b>=0&&b<slotCount()){
   if(target==='sweep'){if(S.bays[b]){const k=target;target=null;doPwr(k,b)}else toast('Tap a stop that has a car in it.');return}
@@ -1668,15 +1676,15 @@ cv.addEventListener('pointerdown',e=>{
   let best=-1,bd=0.75;for(const c of L.cars){if(S.gone[c.id])continue;for(const[cx_,cy_]of L.cells[c.id]){const d=Math.hypot((x-lotX)/cell-(cx_+0.5),(y-lotY)/cell-(cy_+0.5));if(d<bd){bd=d;best=c.id}}}
   id=best}
  if(target&&target!=='sweep'){if(id>=0){const k=target;target=null;doPwr(k,id)}else{target=null;toast('Power-up cancelled.')}return}
- if(id>=0){press={id,x,y,shown:false};clearTimeout(pressT);pressT=setTimeout(()=>{if(press&&press.id===id){press.shown=true;showPreview(id)}},320)}
+ if(id>=0){press={id,x:rx_,y:ry_,shown:false,t0:e.timeStamp};clearTimeout(pressT);pressT=setTimeout(()=>{if(press&&press.id===id){press.shown=true;showPreview(id)}},320)}
 });
 let press=null,pressT=0,preview=null,blockMark=null;
 function showPreview(id){const c=L.cars[id],occ=occOf(L,S),w=why(L,S,occ,c);const tr=w.tr||tracePath(L,occ,effCar(L,S,c),S.dep,S);preview={id,path:tr.path,ok:w.k==='ok',k:w.k,d:tr.d,block:tr.block,t0:now()};buzz(6);sfx('ui');
  if(w.k==='frozen')toast('Frozen: '+(c.frozen-S.dep)+' more car'+(c.frozen-S.dep>1?'s':'')+' must leave first.');else if(w.k==='locked')toast('Locked until the matching key car leaves.');else toast(w.k==='ok'?'Clear road. Let go to keep it parked, tap to drive.':'Blocked. Let go to keep it parked.')}
-cv.addEventListener('pointerup',e=>{clearTimeout(pressT);if(!press)return;const p_=press;press=null;if(p_.shown){preview=null;return}if(!ended&&!anyOverlay())tapCar(p_.id)});
+cv.addEventListener('pointerup',e=>{clearTimeout(pressT);if(!press)return;const p_=press;press=null;if(p_.shown&&e.timeStamp-p_.t0>=380){preview=null;return}preview=null;if(!ended&&!anyOverlay())tapCar(p_.id)});
 ['pointerup','pointercancel','pointerleave'].forEach(ev_=>cv.addEventListener(ev_,()=>{ringHold=false}));
 cv.addEventListener('pointercancel',()=>{clearTimeout(pressT);press=null;preview=null});
-cv.addEventListener('pointermove',e=>{if(!press||press.shown)return;const r=cv.getBoundingClientRect();if(Math.hypot(e.clientX-r.left-press.x,e.clientY-r.top-press.y)>cell*0.6){clearTimeout(pressT);press=null}});
+cv.addEventListener('pointermove',e=>{if(!press||press.shown)return;const r=cv.getBoundingClientRect();if(Math.hypot(e.clientX-r.left-press.x,e.clientY-r.top-press.y)>Math.max(cell*0.6,26)){clearTimeout(pressT);press=null}});
 function drawPreview(t){if(!preview)return;const c=L.cars[preview.id],cs=L.cells[preview.id],ec=effCar(L,S,c);const pts=[[gx(ec.x),gy(ec.y)]].concat(preview.path.map(([x,y])=>[gx(x),gy(y)]));
  if(preview.ok){const l=pts[pts.length-1];pts.push([l[0]+DX[preview.d]*cell*0.9,l[1]+DY[preview.d]*cell*0.9])}
  const col=preview.ok?'#45c07f':'#e8484b';cx.save();cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle='rgba(0,0,0,.35)';cx.lineWidth=cell*0.26;cx.beginPath();pts.forEach((p,i)=>i?cx.lineTo(p[0],p[1]):cx.moveTo(p[0],p[1]));cx.stroke();
@@ -2005,7 +2013,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270056';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270151';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
