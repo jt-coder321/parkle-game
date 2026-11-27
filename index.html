@@ -1950,7 +1950,75 @@ const CHEST=30;
 function starTotal(){return Object.values(save.stars).reduce((a,b)=>a+b,0)}
 function chestsReady(){return Math.floor(starTotal()/CHEST)-(save.chests||0)}
 function updateChest(){const n=chestsReady(),into=starTotal()%CHEST;$('mChest').innerHTML='<i>\u{1F9F0}</i><b>Star chest</b><small>'+(n>0?'Ready to open!':into+' / '+CHEST+' \u2605')+'</small>'+(n>0?'<span class="badge">'+n+'</span>':'');$('mChest').classList.toggle('hot',n>0)}
-$('mChest').onclick=()=>{sfx('ui');if(chestsReady()<=0){toast('Earn '+(CHEST-starTotal()%CHEST)+' more stars to open the next chest.');return}save.chests=(save.chests||0)+1;stat('chests');save.coins+=120;persist();openChest('Star chest!',[{coins:120}],()=>{updateChest();updateHUD();showMenu()})};
+$('mChest').onclick=()=>{sfx('ui');if(chestsReady()<=0){toast('Earn '+(CHEST-starTotal()%CHEST)+' more stars to open the next chest.');return}openWheel(()=>{updateChest();updateHUD();showMenu()})};
+// ---------- star wheel: every 30 stars, spin for 5 to 120 coins, each prize has its own celebration ----------
+const WHEEL=[{v:5,w:5,c:'#8aa0b8',t:'Small change'},{v:20,w:14,c:'#3fa7d6',t:'Nice!'},{v:50,w:17,c:'#59c36a',t:'Sweet!'},{v:10,w:8,c:'#b07ad8',t:'Every bit helps'},{v:100,w:12,c:'#ff8f3a',t:'JACKPOT!'},{v:35,w:17,c:'#f2c94c',t:'Lucky!'},{v:120,w:10,c:'#e8484b',t:'MEGA JACKPOT!!'},{v:75,w:17,c:'#18b6a0',t:'Big win!'}];
+function openWheel(done){
+ if(!$('wlStyle')){const st=document.createElement('style');st.id='wlStyle';st.textContent=
+ '#ovWheel{position:fixed;inset:0;z-index:55;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(circle at 50% 45%,#5a3fb0 0%,#2a1d5c 55%,#140e30 100%);overflow:hidden;padding:16px;font-family:inherit}#ovWheel[hidden]{display:none!important}'+
+ '#wlT{position:relative;font-family:var(--display);font-weight:700;font-size:34px;color:#ffd84a;text-shadow:0 4px 0 #8a5a00,0 0 24px rgba(255,216,74,.6)}#wlSub{position:relative;color:#e8e2ff;font-weight:800;font-size:16px}'+
+ '#wlWrap{position:relative;width:min(84vw,340px);aspect-ratio:1}#wlRot{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;box-shadow:0 0 0 8px #ffd84a,0 0 0 14px #8a5a00,0 12px 40px rgba(0,0,0,.5)}'+
+ '#wlPtr{position:absolute;left:50%;top:-18px;width:0;height:0;margin-left:-16px;border-left:16px solid transparent;border-right:16px solid transparent;border-top:34px solid #fff;filter:drop-shadow(0 3px 0 rgba(0,0,0,.4));z-index:3;transform-origin:50% 0}'+
+ '#wlHub{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3b8,#ffc83a 60%,#c78800);box-shadow:0 4px 0 #8a5a00;z-index:2}'+
+ '#wlSpin,#wlGo{position:relative;min-width:200px;padding:16px 28px;border:0;border-radius:999px;font-weight:900;font-size:22px;color:#4a2d00;background:linear-gradient(#ffe27a,#ffb400);box-shadow:0 6px 0 #a86a00,0 0 26px rgba(255,200,60,.6);cursor:pointer}#wlSpin:active,#wlGo:active{transform:translateY(3px);box-shadow:0 3px 0 #a86a00}'+
+ '#wlBan{position:relative;text-align:center;min-height:84px;opacity:0}#wlBan.on{opacity:1;animation:wlslam .7s cubic-bezier(.2,1.7,.4,1) both}#wlBan b{display:block;font-family:var(--display);font-size:38px;color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.35)}#wlBan span{display:block;font-weight:900;font-size:26px;color:#ffd84a}'+
+ '@keyframes wlslam{0%{transform:scale(3) rotate(-8deg);opacity:0}60%{transform:scale(.9) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0)}}'+
+ '#ovWheel.flash{animation:wlflash .5s ease-out}@keyframes wlflash{0%{background:#fff}100%{}}#ovWheel.shk #wlWrap,#ovWheel.shk #wlBan{animation:cxshake .09s linear 12}'+
+ '#wlFx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}';document.head.appendChild(st)}
+ let ov=$('ovWheel');if(!ov){ov=document.createElement('div');ov.id='ovWheel';ov.innerHTML='<div id="wlT">Star wheel!</div><div id="wlSub">30 stars earned a spin</div><div id="wlWrap"><canvas id="wlRot" width="680" height="680"></canvas><div id="wlPtr"></div><div id="wlHub"></div></div><div id="wlBan"><b></b><span></span></div><button id="wlSpin">SPIN!</button><button id="wlGo" hidden>Collect</button><canvas id="wlFx"></canvas>';document.body.appendChild(ov)}
+ ov.hidden=false;ov.className='';const rot=$('wlRot'),g=rot.getContext('2d'),N=WHEEL.length,A=Math.PI*2/N,fx=$('wlFx'),fc=fx.getContext('2d');
+ fx.width=innerWidth;fx.height=innerHeight;
+ $('wlSub').textContent='30 stars earned a spin';$('wlBan').className='';$('wlSpin').hidden=false;$('wlSpin').disabled=false;$('wlGo').hidden=true;
+ // wheel face, segment i is centred at angle i*A - PI/2 (pointer at the top) when rotation is 0
+ g.clearRect(0,0,680,680);g.save();g.translate(340,340);
+ WHEEL.forEach((s,i)=>{const a0=i*A-Math.PI/2-A/2,a1=a0+A;g.beginPath();g.moveTo(0,0);g.arc(0,0,330,a0,a1);g.closePath();g.fillStyle=s.c;g.fill();g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=5;g.stroke();
+  g.save();g.rotate(i*A);g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';g.shadowColor='rgba(0,0,0,.45)';g.shadowBlur=6;g.font='900 64px system-ui,sans-serif';g.fillText(String(s.v),0,-236);g.font='40px system-ui,sans-serif';g.fillText('\u{1FA99}',0,-168);g.restore()});
+ g.restore();
+ let ang=0;const setA=a=>{ang=a;rot.style.transform='rotate('+a+'rad)'};setA(0);
+ // celebration engine
+ let P=[],raf=0,fxOn=false;const R=(a,b)=>a+Math.random()*(b-a),W=()=>fx.width,H=()=>fx.height;
+ const add=o=>P.push(Object.assign({x:W()/2,y:H()/2,vx:0,vy:0,gr:900,life:2,age:0,sz:10,col:'#ffd84a',sh:'c',rot:0,vr:0,fade:1},o));
+ const coinRain=(n,dur)=>{for(let i=0;i<n;i++)add({x:R(0,W()),y:R(-H()*0.5,-20),vy:R(120,380),gr:300,life:R(2.2,3.4),sz:R(14,26),col:'#ffc83a',sh:'$',vr:R(-6,6),age:-R(0,dur||1)})};
+ const confetti=n=>{const cs=['#ff4d6d','#4dabff','#ffd84a','#4ade80','#c084fc','#fb923c'];for(let i=0;i<n;i++){const a=R(-Math.PI*0.95,-Math.PI*0.05),v=R(500,1100);add({x:W()/2,y:H()*0.62,vx:Math.cos(a)*v,vy:Math.sin(a)*v,gr:1100,life:R(2,3.2),sz:R(7,13),col:cs[i%6],sh:'r',vr:R(-12,12)})}};
+ const sparkles=n=>{for(let i=0;i<n;i++)add({x:R(W()*0.1,W()*0.9),y:R(H()*0.15,H()*0.75),vy:R(-30,20),gr:0,life:R(0.7,1.6),sz:R(6,15),col:['#fff','#ffe9a0','#bfe6ff'][i%3],sh:'s',vr:R(-3,3),age:-R(0,0.9)})};
+ const firework=(x,y,col,n)=>{for(let i=0;i<(n||46);i++){const a=Math.PI*2*i/(n||46)+R(-.05,.05),v=R(160,460);add({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,gr:260,life:R(1,1.7),sz:R(3,6),col,sh:'c'})}};
+ const fountain=(n)=>{for(let i=0;i<n;i++){const a=-Math.PI/2+R(-0.55,0.55),v=R(700,1250);add({x:W()/2,y:H()*0.6,vx:Math.cos(a)*v,vy:Math.sin(a)*v,gr:1500,life:R(2,3),sz:R(14,24),col:'#ffc83a',sh:'$',vr:R(-9,9),age:-R(0,0.9)})}};
+ const rings=(col)=>{for(let k=0;k<3;k++)add({x:W()/2,y:H()*0.45,sh:'o',sz:20,vr:0,vx:0,vy:0,gr:0,life:1.1,age:-k*0.28,col,fade:1})};
+ const draw=(dt)=>{fc.clearRect(0,0,W(),H());P=P.filter(p=>{p.age+=dt;if(p.age<0)return true;if(p.age>p.life)return false;p.vy+=p.gr*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.rot+=p.vr*dt;const f=Math.min(1,(p.life-p.age)*2);fc.globalAlpha=Math.max(0,f);fc.fillStyle=p.col;fc.save();fc.translate(p.x,p.y);
+  if(p.sh==='o'){const t=p.age/p.life;fc.globalAlpha=1-t;fc.strokeStyle=p.col;fc.lineWidth=10*(1-t)+2;fc.beginPath();fc.arc(0,0,40+t*Math.max(W(),H())*0.6,0,7);fc.stroke()}
+  else{fc.rotate(p.rot);if(p.sh==='$'){fc.scale(Math.abs(Math.cos(p.rot*0.8))*0.8+0.2,1);fc.beginPath();fc.arc(0,0,p.sz/2,0,7);fc.fill();fc.strokeStyle='#b27a00';fc.lineWidth=2;fc.stroke()}
+   else if(p.sh==='r'){fc.fillRect(-p.sz/2,-p.sz/4,p.sz,p.sz/2)}
+   else if(p.sh==='s'){const s=p.sz*(0.5+0.5*Math.sin(p.age*9));fc.beginPath();for(let i=0;i<8;i++){const r=i%2?s*0.22:s;fc.lineTo(Math.cos(i*Math.PI/4)*r,Math.sin(i*Math.PI/4)*r)}fc.closePath();fc.fill()}
+   else{fc.beginPath();fc.arc(0,0,p.sz,0,7);fc.fill()}}
+  fc.restore();return true});fc.globalAlpha=1};
+ let last=0;const loop=t=>{const dt=Math.min(0.05,(t-last)/1000||0.016);last=t;draw(dt);if(P.length||fxOn)raf=requestAnimationFrame(loop);else{raf=0;fc.clearRect(0,0,W(),H())}};
+ const run=()=>{if(!raf){last=performance.now();raf=requestAnimationFrame(loop)}};
+ const timers=[];const later=(f,ms)=>timers.push(setTimeout(f,ms));
+ // the eight celebrations
+ const party={
+  5:()=>{coinRain(14,0.4);sfx('combo',1);buzz(20)},
+  10:()=>{sparkles(60);sfx('combo',2);buzz([20,30,20])},
+  20:()=>{confetti(110);sfx('win');buzz([40,30,60])},
+  35:()=>{rings('#f2c94c');coinRain(60,1.6);sfx('win');sfx('combo',3);buzz([40,30,60])},
+  50:()=>{const cs=['#ff4d6d','#4dabff','#ffd84a','#4ade80','#c084fc'];for(let i=0;i<6;i++)later(()=>{firework(R(W()*0.2,W()*0.8),R(H()*0.15,H()*0.5),cs[i%5]);sfx('hint');buzz(25)},i*380);sfx('win')},
+  75:()=>{ov.classList.add('flash','shk');fountain(70);later(()=>fountain(60),500);sfx('win');sfx('combo',4);buzz([60,30,60,30,120])},
+  100:()=>{ov.classList.add('flash','shk');coinRain(140,2.2);fountain(60);confetti(90);rings('#ff8f3a');later(()=>rings('#fff'),500);sfx('win');sfx('combo',5);buzz([80,40,80,40,200])},
+  120:()=>{ov.classList.add('flash','shk');const cs=['#ff4d6d','#4dabff','#ffd84a','#4ade80','#c084fc','#fff'];for(let i=0;i<10;i++)later(()=>{firework(R(W()*0.1,W()*0.9),R(H()*0.1,H()*0.55),cs[i%6],60);sfx('hint');buzz(30)},i*260);coinRain(200,3);fountain(80);confetti(160);rings('#e8484b');later(()=>rings('#ffd84a'),450);later(()=>rings('#fff'),900);later(()=>{ov.classList.add('flash');fountain(90)},1500);sfx('win');sfx('combo',6);buzz([100,40,100,40,100,40,300])}};
+ // pick the prize now (so closing mid-spin never loses it), then pay it
+ let tot=0;for(const s of WHEEL)tot+=s.w;let r=Math.random()*tot,pi=0;for(let i=0;i<N;i++){r-=WHEEL[i].w;if(r<=0){pi=i;break}}
+ if(window.__wheelForce!=null)pi=window.__wheelForce;const prize=WHEEL[pi];let spun=false;
+ $('wlSpin').onclick=e=>{e.stopPropagation();if(spun)return;spun=true;$('wlSpin').hidden=true;$('wlSub').textContent='Good luck!';
+  save.chests=(save.chests||0)+1;stat('chests');save.coins+=prize.v;persist();
+  // land with the prize centre under the pointer (a little off-centre looks more natural)
+  const target=-(pi*A)+Math.PI*2*(5+Math.floor(Math.random()*2))+R(-A*0.3,A*0.3),dur=5200,t0=performance.now();let lastSeg=-1;fxOn=true;
+  const ease=x=>1-Math.pow(1-x,4);
+  const step=t=>{const k=Math.min(1,(t-t0)/dur),a=ease(k)*target;setA(a);const seg=Math.floor((((-a/A)%N)+N)%N+0.5);if(seg!==lastSeg){lastSeg=seg;sfx('board',seg%6);$('wlPtr').style.transform='rotate(-14deg)';setTimeout(()=>{$('wlPtr').style.transform=''},60)}
+   if(k<1){requestAnimationFrame(step);return}
+   fxOn=false;spun=false;$('wlSub').textContent='';const ban=$('wlBan');ban.querySelector('b').textContent=prize.t;ban.querySelector('span').textContent='+'+prize.v+' coins';ban.className='on';party[prize.v]();run();$('wlGo').hidden=false;updateHUD&&updateHUD()};
+  fxOn=true;run();requestAnimationFrame(step)};
+ $('wlGo').onclick=e=>{e.stopPropagation();sfx('ui');timers.forEach(clearTimeout);cancelAnimationFrame(raf);raf=0;ov.hidden=true;done&&done()};
+}
+
 // full-screen chest reveal: shake, burst open, rewards fly out one by one
 function openChest(title,got,done){const ov=$('ovChest');ov.className='';ov.hidden=false;$('cxTitle').textContent=title;$('cxSub').textContent='Tap the chest to open it';$('cxSub').hidden=false;$('cxLoot').innerHTML='';$('cxGo').hidden=true;
  let cv2=$('cxConf');if(!cv2){cv2=document.createElement('canvas');cv2.id='cxConf';ov.appendChild(cv2)}
@@ -2057,7 +2125,7 @@ async function redeemGift(txt){txt=cleanCode(txt);const m=/(GIFT-[A-Za-z0-9_-]+-
  if(!got.length)return'That gift code is empty.';save.redeemed[g.id]=1;persist();try{syncCoins()}catch(e){}try{updateHUD()}catch(e){}sfx('win');return'Gift redeemed: '+got.join(', ')+'!'}
 $('sRedeem').onclick=async()=>{const el=$('sGift');const msg=await redeemGift(el.value);toast(msg);if(/^Gift redeemed/.test(msg))el.value=''};
 // ---------- updates: the GitHub site and the Android app check version.json and reload onto the newest build ----------
-const PARKLE_VER='202611270256';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
+const PARKLE_VER='202611270302';const canUpd=!window.claude&&/^https?:$/.test(location.protocol);
 function verLabel(v){return v.length>=12?v.slice(0,4)+'.'+v.slice(4,6)+'.'+v.slice(6,8)+' '+v.slice(8,10)+':'+v.slice(10,12):v}
 async function remoteVer(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('ver '+r.status);const j=await r.json();return String(j.v||'')}
 async function applyUpdate(v){try{sessionStorage.setItem('parkle.upd',v)}catch(e){}
@@ -3297,7 +3365,7 @@ function saveResume(){try{if(!L||ended||mode.type==='endless'||!S||S.dep===0){if
 function tryResume(){const r=save.resume;if(!r||!r.mode)return false;try{const m=r.mode;if(m.type==='level')startLevel(m.n);else if(m.type==='daily')startDaily(m.date);else if(m.type==='pack')startPack(m.pk,m.i);else return false;
   if(r.sig!==lotSig()){save.resume=null;persist();return true}
   S=deserS(r.S);if(!S.brk)S.brk={};if(!S.wGone)S.wGone={};undos=r.undos||0;hints=r.hints||0;hist=[];resetView();reveal(L,S);updateHUD();hideAll();toast('Welcome back! Picking up where you left off.');return true}catch(e){save.resume=null;return false}}
-window.__parkle={get V3(){return V3},get dpr(){return dpr},applyTheme,get econ(){return{lastCoins,lastStars,lastLoot}},setShopTab:t=>{shopTab=t},showLose,PWR,pwBlock,ccol,audio:()=>({AC,master}),showGift,showGuide,tryResume,saveResume,get popIdx(){return popIdx},showShop,showPacks,startPack,openChest,showGoals,goalBump,get tut(){return tut},showWin,showLose,showMenu,showLevels,showSettings,showEndless,showPick,hideAll,save:()=>save,doPwr:(k,a)=>doPwr(k,a),startEndless:()=>startEndless(),get mode(){return mode},inv:()=>save.inv,showBoosts:()=>showBoosts(),dbg:()=>({fx:fx.map(f=>f.at),now:now(),done:animsDone(),tok:endToken}),get L(){return L},get S(){return S},tapCar,doUndo,doHint,startLevel,get ended(){return ended},layout,get cell(){return cell},get lot(){return[lotX,lotY]}};
+window.__parkle={openWheel,get V3(){return V3},get dpr(){return dpr},applyTheme,get econ(){return{lastCoins,lastStars,lastLoot}},setShopTab:t=>{shopTab=t},showLose,PWR,pwBlock,ccol,audio:()=>({AC,master}),showGift,showGuide,tryResume,saveResume,get popIdx(){return popIdx},showShop,showPacks,startPack,openChest,showGoals,goalBump,get tut(){return tut},showWin,showLose,showMenu,showLevels,showSettings,showEndless,showPick,hideAll,save:()=>save,doPwr:(k,a)=>doPwr(k,a),startEndless:()=>startEndless(),get mode(){return mode},inv:()=>save.inv,showBoosts:()=>showBoosts(),dbg:()=>({fx:fx.map(f=>f.at),now:now(),done:animsDone(),tok:endToken}),get L(){return L},get S(){return S},tapCar,doUndo,doHint,startLevel,get ended(){return ended},layout,get cell(){return cell},get lot(){return[lotX,lotY]}};
 
 // ---- boarding circle: riders walk around it, and any of them can hop into a matching car ----
 function drawRingQueue(t,dt,started,T){const W=Math.min(L.ring,S.q.length-started),R=ringR,[cx0,cy0]=ringC,walkC=T.night?'#2c3462':mixHex(T.walk,'#000000',0.06),rs=ps*0.74;
